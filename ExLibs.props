@@ -6,6 +6,7 @@
   <ItemDefinitionGroup>
     <ClCompile>
       <AdditionalIncludeDirectories>$(ProjectDir);$(SolutionDir);$(SolutionDir)ExLibs;$(SolutionDir)ExLibs\String;$(SolutionDir)ExLibs\Network;$(SolutionDir)ExLibs\Logger;$(SolutionDir)ExLibs\DB;$(SolutionDir)ExLibs\DB\sqlite;$(SolutionDir)ExLibs\Windows;$(SolutionDir)ExLibs\Qt;$(SolutionDir)ExLibs\File;$(SolutionDir)ExLibs\Process;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>_CRT_NO_VA_START_VALIDATION;WINDOWS;WIN32_LEAN_AND_MEAN;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
