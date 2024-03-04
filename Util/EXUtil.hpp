@@ -10,6 +10,8 @@ namespace Ext
 
         inline bool isTrue( const char* c )          { return c == "Y" || c == "y" || c == "True" || c == "TRUE" || c == "1"; }
         inline bool isTrue( const std::string& s )   { return s == "Y" || s == "y" || s == "True" || s == "TRUE" || s == "1"; }
+
+        std::wstring CreateGUID();
     }
 }
 
