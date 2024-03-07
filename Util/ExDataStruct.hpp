@@ -17,7 +17,10 @@ namespace Ext
         {
         public:
             eventQueue() {};
-            ~eventQueue() {};
+            ~eventQueue()
+            {
+                Stop();
+            };
 
             T DeQueue()
             {
@@ -25,6 +28,9 @@ namespace Ext
 
                 while( _queue.empty() == true )
                     _cvQueue.wait( lck );
+
+                if( _isStop == true )
+                    return T();
 
                 T ret = _queue.front();
                 _queue.pop();
@@ -40,10 +46,19 @@ namespace Ext
                 _cvQueue.notify_one();
             }
 
+            void Stop()
+            {
+                _isStop = true;
+                _cvQueue.notify_one();
+            }
+
         private:
             std::condition_variable                  _cvQueue;
             std::queue< T >                          _queue;
             std::mutex                               _lck;
+
+            bool                                     _isStop = false;
+
         };
     }
 }
