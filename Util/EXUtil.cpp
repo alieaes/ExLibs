@@ -1,15 +1,15 @@
 ﻿#include "stdafx.h"
 #include "EXUtil.hpp"
 
-#include "uuid_v4.h"
+#include "UUID/uuid_v4.h"
 
-std::wstring Ext::Util::CreateGUID( bool isUpper /*= false*/ )
+std::wstring Ext::Util::CreateGUID( eCaseType eCase /*= CASE_TYPE_NONE*/ )
 {
     UUIDv4::UUIDGenerator<std::mt19937_64> uuid;
     std::string sUUID = uuid.getUUID().str();
 
-    if( isUpper == true )
-        std::transform( sUUID.begin(), sUUID.end(), sUUID.begin(), ::toupper );
+    if( eCase == CASE_TYPE_UPPER )
+        std::ranges::transform(sUUID, sUUID.begin(), ::toupper );
 
-    return std::wstring( sUUID.begin(), sUUID.end() );
+    return std::basic_string<wchar_t>( sUUID.begin(), sUUID.end() );
 }

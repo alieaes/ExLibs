@@ -1,8 +1,23 @@
-﻿#ifndef __HDR_EXT_UTIL__
+﻿#pragma once
+
+#ifndef __HDR_EXT_UTIL__
 #define __HDR_EXT_UTIL__
 
 namespace Ext
 {
+    enum eCaseType
+    {
+        CASE_TYPE_NONE = 0,
+        CASE_TYPE_UPPER = 1,
+        CASE_TYPE_LOWER = 2
+    };
+
+    enum eCaseSensitivity
+    {
+        CASE_SENSITIVE = 0,
+        CASE_INSENSITIVE = 1
+    };
+
     namespace Util
     {
         inline bool isTrue( const wchar_t* c )       { return c == L"Y" || c == L"y" || c == L"True" || c == L"TRUE" || c == L"1"; }
@@ -11,7 +26,7 @@ namespace Ext
         inline bool isTrue( const char* c )          { return c == "Y" || c == "y" || c == "True" || c == "TRUE" || c == "1"; }
         inline bool isTrue( const std::string& s )   { return s == "Y" || s == "y" || s == "True" || s == "TRUE" || s == "1"; }
 
-        std::wstring CreateGUID();
+        std::wstring CreateGUID( eCaseType eCase = CASE_TYPE_NONE );
     }
 }
 
