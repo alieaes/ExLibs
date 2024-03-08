@@ -204,7 +204,7 @@ void Ext::Module::cModuleManager::notifyAllModule()
 
             if( info.sGroup.empty() == false )
             {
-                if( value->GetGroup() != info.sGroup )
+                if( value->GetModuleGroup() != info.sGroup )
                     continue;
             }
 

@@ -13,13 +13,10 @@ namespace Ext
         {
         public:
             cModuleBase();
-            ~cModuleBase();
+            virtual ~cModuleBase();
 
             std::wstring                             GetModuleName() { return _sModuleName; }
-            std::wstring                             GetGroup() { return _sModuleGroup; }
-
-            void                                     SetModuleName( const std::wstring& sModuleName ) { _sModuleName = sModuleName; }
-            void                                     SetGroup( const std::wstring& sGroup ) { _sModuleGroup = sGroup; }
+            std::wstring                             GetModuleGroup() { return _sModuleGroup; }
 
             virtual bool                             NotifyModule( const std::wstring& sNotifyJobs ) = 0;
 
@@ -37,6 +34,18 @@ namespace Ext
             virtual bool                             moduleStop()   = 0;
             virtual bool                             moduleFinal()  = 0;
 
+            /*
+            *  override sample
+            *  setModuleName  -> _sModuleName  = (MODULE_NAME)
+            *  setModuleGroup -> _sModuleGroup = (MODULE_GROUP)
+            */
+
+            virtual void                             setModuleName() = 0;
+            virtual void                             setModuleGroup() = 0;
+
+            std::wstring                             _sModuleName;
+            std::wstring                             _sModuleGroup;
+
         private:
             void                                     setModuleState( eModuleState state );
 
@@ -45,9 +54,6 @@ namespace Ext
 
             std::mutex                               _lckState;
             eModuleState                             _eState         = MODULE_STATE_NONE;
-
-            std::wstring                             _sModuleName;
-            std::wstring                             _sModuleGroup;
         };
 
         typedef std::shared_ptr< cModuleBase > spModuleBase;
