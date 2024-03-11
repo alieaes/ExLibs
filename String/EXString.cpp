@@ -275,3 +275,9 @@ bool XString::endswith( const XString& xs, bool isCaseInsensitive /*= false*/ ) 
     }
     return _str.ends_with( xs );
 }
+
+void XString::clear()
+{
+    _str.clear();
+    _nPos = 0;
+}

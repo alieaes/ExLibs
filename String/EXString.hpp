@@ -336,6 +336,8 @@ public:
     bool                             startswith( const XString& xs, bool isCaseInsensitive = false ) const;
     bool                             endswith( const XString& xs, bool isCaseInsensitive = false ) const;
 
+    void                             clear();
+
 protected:
 
 private:
