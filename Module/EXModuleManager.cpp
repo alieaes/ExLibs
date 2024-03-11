@@ -14,41 +14,41 @@ Ext::Module::cModuleManager::~cModuleManager()
         _thNotify.join();
 }
 
-bool Ext::Module::cModuleManager::RegisterModule( const std::wstring& sModuleName, cModuleBase* cModule )
+bool Ext::Module::cModuleManager::RegisterModule( const XString& sModuleName, const XString& sModuleGroup, cModuleBase* cModule )
 {
     bool isSuccess = false;
 
     do
     {
-        if( IsExistModule( sModuleName ) == false )
+        if( IsExistModule( sModuleName ) == true )
             break;
 
         const auto& spModule = std::shared_ptr< cModuleBase >( cModule );
 
-        isSuccess = insertModule( sModuleName, spModule );
+        isSuccess = insertModule( sModuleName, sModuleGroup, spModule );
 
     } while( false );
 
     return isSuccess;
 }
 
-bool Ext::Module::cModuleManager::RegisterModule( const std::wstring& sModuleName, spModuleBase spModule )
+bool Ext::Module::cModuleManager::RegisterModule( const XString& sModuleName, const XString& sModuleGroup, spModuleBase spModule )
 {
     bool isSuccess = false;
 
     do
     {
-        if( IsExistModule( sModuleName ) == false )
+        if( IsExistModule( sModuleName ) == true )
             break;
 
-        isSuccess = insertModule( sModuleName, spModule );
+        isSuccess = insertModule( sModuleName, sModuleGroup, spModule );
 
     } while( false );
 
     return isSuccess;
 }
 
-bool Ext::Module::cModuleManager::UnRegisterModule( const std::wstring& sModuleName )
+bool Ext::Module::cModuleManager::UnRegisterModule( const XString& sModuleName )
 {
     bool isSuccess = false;
 
@@ -67,7 +67,7 @@ bool Ext::Module::cModuleManager::UnRegisterModule( const std::wstring& sModuleN
     return isSuccess;
 }
 
-bool Ext::Module::cModuleManager::NotifyAllModule( const std::wstring& sNotifyJobs )
+bool Ext::Module::cModuleManager::NotifyAllModule( const XString& sNotifyJobs )
 {
     bool isSuccess = false;
 
@@ -84,7 +84,7 @@ bool Ext::Module::cModuleManager::NotifyAllModule( const std::wstring& sNotifyJo
     return isSuccess;
 }
 
-bool Ext::Module::cModuleManager::NotifyGroupModule( const std::wstring& sGroup, const std::wstring& sNotifyJobs )
+bool Ext::Module::cModuleManager::NotifyGroupModule( const XString& sGroup, const XString& sNotifyJobs )
 {
     bool isSuccess = false;
 
@@ -101,7 +101,7 @@ bool Ext::Module::cModuleManager::NotifyGroupModule( const std::wstring& sGroup,
     return isSuccess;
 }
 
-bool Ext::Module::cModuleManager::IsExistModule( const std::wstring& sModuleName )
+bool Ext::Module::cModuleManager::IsExistModule( const XString& sModuleName )
 {
     bool isSuccess = false;
 
@@ -121,7 +121,7 @@ bool Ext::Module::cModuleManager::IsExistModule( const std::wstring& sModuleName
 
 //////////////////////////////////////////////////////////////////////////////
 
-Ext::Module::spModuleBase Ext::Module::cModuleManager::getModule( const std::wstring& sModuleName )
+Ext::Module::spModuleBase Ext::Module::cModuleManager::GetModuleBase( const XString& sModuleName )
 {
     spModuleBase module = NULLPTR;
 
@@ -139,7 +139,27 @@ Ext::Module::spModuleBase Ext::Module::cModuleManager::getModule( const std::wst
     return module;
 }
 
-bool Ext::Module::cModuleManager::insertModule( const std::wstring& sModuleName, const spModuleBase& spModule )
+bool Ext::Module::cModuleManager::insertModule( const XString& sModuleName, const XString& sModuleGroup, const spModuleBase& spModule )
+{
+    bool isSuccess = false;
+
+    do
+    {
+        std::lock_guard< std::shared_mutex > lck( _lckModule );
+
+        _mapModuleNameToModule[ sModuleName ] = spModule;
+
+        spModule->_sModuleName = sModuleName;
+        spModule->_sModuleGroup = sModuleGroup;
+
+        isSuccess = spModule->ModuleInit();
+
+    } while( false );
+
+    return isSuccess;
+}
+
+bool Ext::Module::cModuleManager::insertModule( const XString& sModuleName, const spModuleBase& spModule )
 {
     bool isSuccess = false;
 
@@ -156,7 +176,7 @@ bool Ext::Module::cModuleManager::insertModule( const std::wstring& sModuleName,
     return isSuccess;
 }
 
-bool Ext::Module::cModuleManager::deleteModule( const std::wstring& sModuleName )
+bool Ext::Module::cModuleManager::deleteModule( const XString& sModuleName )
 {
     bool isSuccess = false;
 
@@ -164,7 +184,7 @@ bool Ext::Module::cModuleManager::deleteModule( const std::wstring& sModuleName 
     {
         std::lock_guard< std::shared_mutex > lck( _lckModule );
 
-        const spModuleBase spModule = getModule( sModuleName );
+        const spModuleBase spModule = GetModuleBase( sModuleName );
 
         isSuccess = spModule->ModuleStop();
 
@@ -202,7 +222,7 @@ void Ext::Module::cModuleManager::notifyAllModule()
             if( value->GetModuleState() != MODULE_STATE_START )
                 continue;
 
-            if( info.sGroup.empty() == false )
+            if( info.sGroup.IsEmpty() == false )
             {
                 if( value->GetModuleGroup() != info.sGroup )
                     continue;

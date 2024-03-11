@@ -4,6 +4,8 @@
 #define __HDR_EXT_MODULE_MANAGER__
 
 #include "ExLibs/Base/Singleton.hpp"
+#include "String/EXString.hpp"
+
 #include "EXModuleBase.hpp"
 
 #include <shared_mutex>
@@ -18,7 +20,7 @@ namespace Ext
 {
     namespace Module
     {
-        typedef std::map< std::wstring, spModuleBase > mapNameToModule;
+        typedef std::map< XString, spModuleBase > mapNameToModule;
 
         class cModuleManager
         {
@@ -27,20 +29,22 @@ namespace Ext
             ~cModuleManager();
 
         public:
-            bool                                     RegisterModule( const std::wstring& sModuleName, cModuleBase* cModule );
-            bool                                     RegisterModule( const std::wstring& sModuleName, spModuleBase spModule );
+            bool                                     RegisterModule( const XString& sModuleName, const XString& sModuleGroup, cModuleBase* cModule );
+            bool                                     RegisterModule( const XString& sModuleName, const XString& sModuleGroup, spModuleBase spModule );
 
-            bool                                     UnRegisterModule( const std::wstring& sModuleName );
+            bool                                     UnRegisterModule( const XString& sModuleName );
 
-            bool                                     NotifyAllModule( const std::wstring& sNotifyJobs );
-            bool                                     NotifyGroupModule( const std::wstring& sGroup, const std::wstring& sNotifyJobs );
+            bool                                     NotifyAllModule( const XString& sNotifyJobs );
+            bool                                     NotifyGroupModule( const XString& sGroup, const XString& sNotifyJobs );
 
-            bool                                     IsExistModule( const std::wstring& sModuleName );
+            bool                                     IsExistModule( const XString& sModuleName );
+
+            spModuleBase                             GetModuleBase( const XString& sModuleName );
+
         private:
-            spModuleBase                             getModule( const std::wstring& sModuleName );
-
-            bool                                     insertModule( const std::wstring& sModuleName, const spModuleBase& spModule );
-            bool                                     deleteModule( const std::wstring& sModuleName );
+            bool                                     insertModule( const XString& sModuleName, const XString& sModuleGroup, const spModuleBase& spModule );
+            bool                                     insertModule( const XString& sModuleName, const spModuleBase& spModule );
+            bool                                     deleteModule( const XString& sModuleName );
 
             void                                     notifyAllModule();
 
@@ -53,10 +57,26 @@ namespace Ext
             Queue::eventQueue< MODULE_NOTIFY_INFO >  _notifyQueue;
 
             std::thread                              _thNotify;
-
         };
 
         typedef Ext::Singletons::Singleton< cModuleManager > tdStModuleManager;
+
+        template< typename T >
+        std::shared_ptr< T > GetModule( const XString& sModuleName )
+        {
+            auto stModule = tdStModuleManager::GetInstance();
+
+                do
+                {
+                    if( stModule->IsExistModule( sModuleName ) == false )
+                        break;
+
+                    return std::dynamic_pointer_cast< T >( stModule->GetModuleBase( sModuleName ) );
+
+                } while( false );
+
+                return std::shared_ptr< T >();
+        }
     }
 }
 

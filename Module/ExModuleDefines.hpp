@@ -3,6 +3,8 @@
 #ifndef __HDR_EXT_MODULE_DEFINES__
 #define __HDR_EXT_MODULE_DEFINES__
 
+#include "String/EXString.hpp"
+
 namespace Ext
 {
     namespace Module
@@ -18,10 +20,21 @@ namespace Ext
 
         struct MODULE_NOTIFY_INFO
         {
-            std::wstring sGroup;
-            std::wstring sJobs;
+            XString sGroup;
+            XString sJobs;
+
+            MODULE_NOTIFY_INFO()
+            {
+                
+            }
 
             MODULE_NOTIFY_INFO( const std::wstring& _sGroup, const std::wstring& _sJobs )
+            {
+                sGroup = _sGroup;
+                sJobs = _sJobs;
+            }
+
+            MODULE_NOTIFY_INFO( const XString& _sGroup, const XString& _sJobs )
             {
                 sGroup = _sGroup;
                 sJobs = _sJobs;
@@ -32,9 +45,14 @@ namespace Ext
                 sJobs = _sJobs;
             }
 
+            MODULE_NOTIFY_INFO( const XString& _sJobs )
+            {
+                sJobs = _sJobs;
+            }
+
             bool isEmpty() const
             {
-                return sGroup.empty() == true && sJobs.empty() == true;
+                return sGroup.IsEmpty() == true && sJobs.IsEmpty() == true;
             }
         };
     }

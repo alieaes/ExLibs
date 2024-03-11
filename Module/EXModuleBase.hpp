@@ -4,6 +4,7 @@
 #define __HDR_EXT_MODULE_BASE__
 
 #include "Module/ExModuleDefines.hpp"
+#include "String/EXString.hpp"
 
 namespace Ext
 {
@@ -18,7 +19,7 @@ namespace Ext
             std::wstring                             GetModuleName() { return _sModuleName; }
             std::wstring                             GetModuleGroup() { return _sModuleGroup; }
 
-            virtual bool                             NotifyModule( const std::wstring& sNotifyJobs ) = 0;
+            virtual bool                             NotifyModule( const XString& sNotifyJobs ) = 0;
 
             bool                                     ModuleInit();
             bool                                     ModuleStart();
@@ -34,26 +35,19 @@ namespace Ext
             virtual bool                             moduleStop()   = 0;
             virtual bool                             moduleFinal()  = 0;
 
-            /*
-            *  override sample
-            *  setModuleName  -> _sModuleName  = (MODULE_NAME)
-            *  setModuleGroup -> _sModuleGroup = (MODULE_GROUP)
-            */
-
-            virtual void                             setModuleName() = 0;
-            virtual void                             setModuleGroup() = 0;
+        private:
+            void                                     setModuleState( eModuleState state );
 
             std::wstring                             _sModuleName;
             std::wstring                             _sModuleGroup;
-
-        private:
-            void                                     setModuleState( eModuleState state );
 
             bool                                     _isStop         = false;
             std::atomic_bool                         _isRunning      = false;
 
             std::mutex                               _lckState;
             eModuleState                             _eState         = MODULE_STATE_NONE;
+
+            friend class                             cModuleManager;
         };
 
         typedef std::shared_ptr< cModuleBase > spModuleBase;
