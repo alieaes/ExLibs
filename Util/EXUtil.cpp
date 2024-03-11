@@ -3,6 +3,8 @@
 
 #include "UUID/uuid_v4.h"
 
+#include <random>
+
 /*
  * Required Include File : Util/UUID/uuid_v4.h
  */
@@ -17,3 +19,7 @@ std::wstring Ext::Util::CreateGUID( eCaseType eCase /*= CASE_TYPE_NONE*/ )
 
     return std::basic_string<wchar_t>( sUUID.begin(), sUUID.end() );
 }
+
+///////////////////////////////////////////////////////////////////////////
+
+///////////////////////////////////////////////////////////////////////////

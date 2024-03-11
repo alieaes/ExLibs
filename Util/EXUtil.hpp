@@ -3,6 +3,8 @@
 #ifndef __HDR_EXT_UTIL__
 #define __HDR_EXT_UTIL__
 
+#include <random>
+
 namespace Ext
 {
     enum eCaseType
@@ -26,7 +28,49 @@ namespace Ext
         inline bool isTrue( const char* c )          { return c == "Y" || c == "y" || c == "True" || c == "TRUE" || c == "1"; }
         inline bool isTrue( const std::string& s )   { return s == "Y" || s == "y" || s == "True" || s == "TRUE" || s == "1"; }
 
-        std::wstring CreateGUID( eCaseType eCase = CASE_TYPE_NONE );
+        std::wstring                             CreateGUID( eCaseType eCase = CASE_TYPE_NONE );
+
+        template < typename T >
+        class cRandom
+        {
+        public:
+            cRandom( T nStart, T nEnd )
+            {
+                SetRange( nStart, nEnd );
+                Reset();
+            }
+
+            ~cRandom()
+            {
+            }
+
+            void SetRange( T nStart, T nEnd )
+            {
+                _nRangeStart = nStart;
+                _nRangeEnd = nEnd;
+            }
+
+            void Reset()
+            {
+                std::random_device rd;
+
+                std::mt19937 gen( rd );
+                _gen = gen;
+
+                _dist( _nRangeStart, _nRangeEnd );
+            }
+
+            T Generate()
+            {
+                return _dist( _gen );
+            }
+
+        private:
+            T                                    _nRangeStart;
+            T                                    _nRangeEnd;
+            std::mt19937                         _gen;
+            std::uniform_int_distribution< T >   _dist;
+        };
     }
 }
 
