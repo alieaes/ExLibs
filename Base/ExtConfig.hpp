@@ -1,8 +1,9 @@
 ﻿#pragma once
 
 
-// 함수 선언 시 템플릿
-// foo                                      bar();
+/* 함수 선언 시 템플릿
+    foo                                      bar();
+ */
 
 // 유용한 선언
 #ifndef __HDR_EXT_BASE_CONFIG__
