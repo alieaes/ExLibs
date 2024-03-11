@@ -3,6 +3,10 @@
 
 #include "UUID/uuid_v4.h"
 
+/*
+ * Required Include File : Util/UUID/uuid_v4.h
+ */
+
 std::wstring Ext::Util::CreateGUID( eCaseType eCase /*= CASE_TYPE_NONE*/ )
 {
     UUIDv4::UUIDGenerator<std::mt19937_64> uuid;
