@@ -48,16 +48,12 @@ namespace Ext
             {
                 _nRangeStart = nStart;
                 _nRangeEnd = nEnd;
+                _dist = std::uniform_int_distribution<T>( _nRangeStart, _nRangeEnd );
             }
 
             void Reset()
             {
-                std::random_device rd;
-
-                std::mt19937 gen( rd );
-                _gen = gen;
-
-                _dist( _nRangeStart, _nRangeEnd );
+                _gen.seed( std::random_device{}( ) );
             }
 
             T Generate()
