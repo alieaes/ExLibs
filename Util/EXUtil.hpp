@@ -5,6 +5,9 @@
 
 #include <random>
 
+#include "EXString.hpp"
+#include "Base/Singleton.hpp"
+
 namespace Ext
 {
     enum eCaseType
@@ -46,8 +49,17 @@ namespace Ext
 
             void SetRange( T nStart, T nEnd )
             {
-                _nRangeStart = nStart;
-                _nRangeEnd = nEnd;
+                if( nStart < nEnd )
+                {
+                    _nRangeStart = nStart;
+                    _nRangeEnd = nEnd;
+                }
+                else
+                {
+                    _nRangeStart = nEnd;
+                    _nRangeEnd = nStart;
+                }
+
                 _dist = std::uniform_int_distribution<T>( _nRangeStart, _nRangeEnd );
             }
 
