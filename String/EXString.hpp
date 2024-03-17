@@ -174,9 +174,9 @@ public:
 
     operator LPCWSTR() const { return _str.c_str(); }
 
-#ifdef USING_QT_LIBS
+#ifdef QSTRING_H
     operator QString() const { return QString::fromStdWString( _str ); }
-#endif  // USING_QT_LIBS
+#endif  // QSTRING_H
     ////////////////////////////////////////////
 
     XString operator+= ( int n )
@@ -218,21 +218,20 @@ public:
 
     XString operator +( std::wstring& xs )
     {
-        _str += xs;
-        return _str;
+        std::wstring tmp = _str + xs;
+        return tmp;
     }
 
     XString operator +( const char* c )
     {
         std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
-        _str += converter.from_bytes( c );
-        return _str;
+        std::wstring tmp = _str + converter.from_bytes( c );
+        return tmp;
     }
 
     XString operator +( const std::wstring& xs )
     {
-        _str += xs;
-        return _str;
+        return _str + xs;
     }
 
     bool operator ==( std::wstring& xs ) const
