@@ -8,6 +8,37 @@
 #include "EXString.hpp"
 #include "Base/Singleton.hpp"
 
+#define EXT_ENUM_START( x )              \
+class c##x                               \
+{                                        \
+public:                                  \
+    c##x()                               \
+    {
+
+#define EXT_ENUM_ADD( e, x )             \
+        _map[ e ] = x;
+
+#define EXT_ENUM_END( x )                \
+    }                                    \
+    ~c##x() {}                           \
+    XString Get( x e )                   \
+    {                                    \
+        if( _map.contains( e ) == true ) \
+            return _map[ e ];            \
+        else                             \
+            return "";                   \
+    }                                    \
+    void Set( x e, const XString& s )    \
+    {                                    \
+        _map[ e ] = s;                   \
+    }                                    \
+private:                                 \
+    std::map< x, XString > _map;         \
+};
+
+#define EXT_ENUM_GET( x, e )             \
+    c##x().Get( e )
+
 namespace Ext
 {
     enum eCaseType
