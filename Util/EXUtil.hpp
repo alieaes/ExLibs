@@ -64,6 +64,8 @@ namespace Ext
 
         std::wstring                             CreateGUID( eCaseType eCase = CASE_TYPE_NONE );
 
+        double                                   CalcPercentageIncrease( double dInit, double dFinal );
+
         template < typename T >
         class cRandom
         {

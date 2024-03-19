@@ -20,6 +20,14 @@ std::wstring Ext::Util::CreateGUID( eCaseType eCase /*= CASE_TYPE_NONE*/ )
     return std::basic_string<wchar_t>( sUUID.begin(), sUUID.end() );
 }
 
+double Ext::Util::CalcPercentageIncrease( double dInit, double dFinal )
+{
+    double dInc = dFinal - dInit;
+    double dPercentage = ( dInc / dInit ) * 100.0;
+
+    return dPercentage;
+}
+
 ///////////////////////////////////////////////////////////////////////////
 
 ///////////////////////////////////////////////////////////////////////////
