@@ -302,9 +302,9 @@ namespace Ext
         };
 
         template< typename ... Args >
-        std::wstring Format( const std::wstring& sFormatString, Args... args )
+        XString Format( const XString& sFormatString, Args... args )
         {
-            return cFormat().Format( sFormatString, args... );
+            return cFormat().Format( sFormatString.toWString(), args... );
         }
     }
 }
