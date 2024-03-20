@@ -58,6 +58,11 @@ namespace Ext
             return std::to_wstring( Value );
         }
 
+        inline std::wstring format_as( short Value )
+        {
+            return std::to_wstring( Value );
+        }
+
         inline std::wstring format_as( const wchar_t* Value )
         {
             return Value;
