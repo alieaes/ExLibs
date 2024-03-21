@@ -52,6 +52,11 @@ namespace Ext
                 _cvQueue.notify_one();
             }
 
+            int Size()
+            {
+                return _queue.size();
+            }
+
         private:
             std::condition_variable                  _cvQueue;
             std::queue< T >                          _queue;
