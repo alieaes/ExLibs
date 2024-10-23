@@ -1,7 +1,10 @@
 ﻿#include "stdafx.h"
 #include "EXQLoadingCircle.hpp"
 
+#include <qcoreapplication.h>
 #include <QPainter>
+#include <QWindow>
+#include <QThread>
 
 namespace Ext
 {
@@ -21,13 +24,54 @@ namespace Ext
         {
         }
 
+        void qLoadingCircle::Show()
+        {
+            Start();
+
+            if( QThread::currentThread() == QCoreApplication::instance()->thread() )
+                show();
+            else
+                QMetaObject::invokeMethod( this, "show" );
+        }
+
+        void qLoadingCircle::Exec()
+        {
+            Start();
+            QMetaObject::invokeMethod( this, "exec" );
+        }
+
         void qLoadingCircle::Start()
         {
             if( _timer != nullptr )
             {
+                auto wdgTop = getTopLevelWidget();
+
+                QWidget* wdgParent = parentWidget();
+                int nX = 0;
+                int nY = 0;
+
+                while( wdgParent != wdgTop )
+                {
+                    nX += wdgParent->pos().x();
+                    nY += wdgParent->pos().y();
+                    wdgParent = wdgParent->parentWidget();
+
+                    if( wdgParent == nullptr )
+                        break;
+                }
+
+                auto parentRect = parentWidget()->rect();
+                auto parentWindowGeometry = parentWidget()->window()->geometry();
+                move( parentWindowGeometry.x() + nX + ( parentRect.width() / 2 ) - ( width() / 2 ), parentWindowGeometry.y() + nY + ( parentRect.height() / 2 ) - ( height() / 2 ) );
+
                 _timer->start( _nUpdateMsec );
                 connect( _timer, &QTimer::timeout, this, &qLoadingCircle::updateAnimation );
             }
+        }
+
+        void qLoadingCircle::Close()
+        {
+            QMetaObject::invokeMethod( this, "close" );
         }
 
         void qLoadingCircle::Stop()
@@ -107,7 +151,6 @@ namespace Ext
             _painter->restore();
             _painter->setRenderHint( QPainter::Antialiasing );
 
-            // 원의 중심과 반지름 설정
             int centerX = width() / 2;
             int centerY = height() / 2;
             int radius = 40;
@@ -118,7 +161,6 @@ namespace Ext
                 if( nPrevIdx < 0 )
                     nPrevIdx = _vecColor.size() - 1;
 
-                // 선 색상 및 두께 설정
                 QPen pen( QBrush( _vecColor.at( nPrevIdx ) ), 5 );
                 pen.setWidth( 5 );
                 pen.setCapStyle( Qt::RoundCap );
@@ -126,13 +168,10 @@ namespace Ext
                 _painter->drawArc( centerX - radius, centerY - radius, radius * 2, radius * 2, 90 * 16, -360 * 16 );
             }
 
-
-            // 선 색상 및 두께 설정
             QPen pen( QBrush( _vecColor.at( _nCurrentIdx ) ), 5 );
             pen.setWidth( 5 );
             _painter->setPen( pen );
 
-            // 원의 일부분만 그리기
             _painter->drawArc( centerX - radius, centerY - radius, radius * 2, radius * 2, 90 * 16, -_nCurrentLength * 16 + 1 );
 
             if( _nCurrentLength >= 360 )
@@ -144,9 +183,9 @@ namespace Ext
         void qLoadingCircle::updateAnimation()
         {
             if( _nCurrentLength < 360 )
-            { // 360도까지 증가
-                _nCurrentLength += 10; // 증가 속도 조정
-                update(); // 다시 그리기 요청
+            {
+                _nCurrentLength += 10; 
+                update(); 
             }
             else
             {
@@ -156,7 +195,7 @@ namespace Ext
                     _nCurrentIdx = 0;
 
                 _nCurrentLength = 0;
-                update(); // 다시 그리기 요청
+                update();
             }
         }
 
@@ -165,6 +204,16 @@ namespace Ext
             _timer = new QTimer( this );
             _painter = new QPainter( this );
             setAttribute( Qt::WA_TranslucentBackground );
+        }
+
+        QWidget* qLoadingCircle::getTopLevelWidget()
+        {
+            QWidget* topWidget = this;
+
+            while( topWidget->parentWidget() != nullptr )
+                topWidget = topWidget->parentWidget();
+
+            return topWidget;
         }
     }
 }

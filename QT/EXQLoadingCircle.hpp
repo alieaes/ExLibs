@@ -20,8 +20,12 @@ namespace Ext
             qLoadingCircle( QWidget* parent = nullptr, Qt::WindowFlags f = Qt::FramelessWindowHint | Qt::Dialog );
             virtual ~qLoadingCircle();
 
+            void                                     Show();
+            void                                     Exec();
+
             void                                     Start();
             void                                     Stop();
+            void                                     Delete();
 
             void                                     SetSpeed( int nSpeed );
             void                                     SetRadius( int nRadius );
@@ -44,6 +48,7 @@ namespace Ext
 
         private:
             void                                     init();
+            QWidget*                                 getTopLevelWidget();
 
             QVector< QBrush >                        _vecColor;
             QVector< QGradient >                     _vecGradient;
