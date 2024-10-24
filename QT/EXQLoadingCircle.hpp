@@ -24,8 +24,8 @@ namespace Ext
             void                                     Exec();
 
             void                                     Start();
+            void                                     Close();
             void                                     Stop();
-            void                                     Delete();
 
             void                                     SetSpeed( int nSpeed );
             void                                     SetRadius( int nRadius );
