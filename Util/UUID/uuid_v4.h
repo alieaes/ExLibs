@@ -2,6 +2,8 @@
 MIT License
 
 Copyright (c) 2018 Xavier "Crashoz" Launey
+
+C2589 -> #define NOMINMAX
 */
 
 #pragma once

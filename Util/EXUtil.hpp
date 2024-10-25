@@ -4,6 +4,7 @@
 #define __HDR_EXT_UTIL__
 
 #include <random>
+#include <map>
 
 #include "EXString.hpp"
 #include "Base/Singleton.hpp"
