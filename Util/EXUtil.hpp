@@ -94,6 +94,7 @@ namespace Ext
                 }
 
                 _dist = std::uniform_int_distribution<T>( _nRangeStart, _nRangeEnd );
+                Reset();
             }
 
             void Reset()
