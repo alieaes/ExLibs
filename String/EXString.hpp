@@ -2,12 +2,16 @@
 #define __HDR_EXT_XSTRING__
 
 #define EXT_USING_XSTRING
+#define _CRT_SECURE_NO_WARNINGS
 
 #include <codecvt>
 #include <sstream>
 #include <vector>
+#include <stdlib.h>
 
 #include "Windows.h"
+
+#include "EXConverter.hpp"
 
 class XString
 {
@@ -22,9 +26,7 @@ public:
         if( c == NULL )
             return;
 
-        std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
-
-        _str = converter.from_bytes( c );
+        _str = c2ws( c );
     }
 
     XString( const wchar_t* wc )
@@ -40,7 +42,7 @@ public:
         if( c == NULL )
             return;
 
-        std::string s = static_cast< std::string >( reinterpret_cast< const char* >( c ) ); // new style
+        std::string s = reinterpret_cast< const char* >( c );
         _str = std::wstring( s.begin(), s.end() );
     }
 
@@ -81,9 +83,7 @@ public:
 
     XString( const std::string& s )
     {
-        std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
-
-        _str = converter.from_bytes( s );
+        s2ws( s );
     }
 
     XString( const std::wstringstream& ws )
@@ -112,28 +112,20 @@ public:
 
     XString operator = ( std::string& s )            // XString xs = std::string( "TEST" );
     {
-        _str = std::wstring( s.begin(), s.end() );
+        _str = s2ws( s );
         return _str;
     }
 
     XString operator = ( const char* c )             // XString xs = "TEST";
     {
-        std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
-        _str = converter.from_bytes( c );
-
+        _str = c2ws( c );
         return _str;
     }
 
     XString operator = ( const unsigned char* c )             // XString xs = "TEST";
     {
         std::string s = static_cast< std::string >( reinterpret_cast< const char* >( c ) ); // new style
-
-        std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
-        _str = converter.from_bytes( s );
-
-        if( _str.empty() == false )
-            _str.pop_back();
-
+        _str = s2ws( s );
         return _str;
     }
 
@@ -167,8 +159,7 @@ public:
     /////////////// XString -> X ///////////////
     operator std::string() const
     {
-        std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
-        return converter.to_bytes( _str );
+        return std::string().assign( _str.begin(), _str.end() );
     }
     //operator std::wstring() const { return _str; }
 
@@ -205,15 +196,20 @@ public:
 
     XString operator +=( const char* c )
     {
-        std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
-        _str += converter.from_bytes( c );
+        _str += c2ws( c );
         return _str;
     }
 
     XString operator += ( std::string& s )
     {
-        _str += std::wstring( s.begin(), s.end() );
+        _str += s2ws( s );
         return _str;
+    }
+
+    XString operator +( XString& xs )
+    {
+        std::wstring tmp = _str + xs.toWString();
+        return tmp;
     }
 
     XString operator +( std::wstring& xs )
@@ -224,14 +220,19 @@ public:
 
     XString operator +( const char* c )
     {
-        std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
-        std::wstring tmp = _str + converter.from_bytes( c );
+        std::wstring tmp = _str + c2ws( c );
         return tmp;
     }
 
     XString operator +( const std::wstring& xs )
     {
         return _str + xs;
+    }
+
+    XString operator +( const std::string& xs )
+    {
+        std::wstring tmp = _str + s2ws( xs );
+        return tmp;
     }
 
     bool operator ==( std::wstring& xs ) const
@@ -318,6 +319,7 @@ public:
 
     size_t                           find_last_of( XString xs ) const;
     size_t                           find( XString xs ) const;
+    size_t                           rfind( XString xs ) const;
 
     const wchar_t*                   c_str() const;
 
@@ -340,6 +342,9 @@ public:
 protected:
 
 private:
+    std::wstring                     s2ws( const std::string& s );
+    std::wstring                     c2ws( const char* c );
+
     std::wstring                     _str;
     int                              _nPos = 0;
 };

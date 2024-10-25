@@ -165,7 +165,7 @@ XString XString::substr( size_t nDst ) const
 
 XString XString::substr( size_t nSrc, size_t nSize ) const
 {
-    if( nSrc == std::string::npos || nSize == std::string::npos )
+    if( nSrc == std::string::npos )
         return "";
 
     return _str.substr( nSrc, nSize );
@@ -179,6 +179,11 @@ size_t XString::find_last_of( XString xs ) const
 size_t XString::find( XString xs ) const
 {
     return _str.find( xs.toWString() );
+}
+
+size_t XString::rfind( XString xs ) const
+{
+    return _str.rfind( xs.toWString() );
 }
 
 const wchar_t* XString::c_str() const
@@ -226,7 +231,10 @@ XString XString::replaceAll( const XString& xa, const XString& xb ) const
 XString XString::replace( const XString& xa, const XString& xb ) const
 {
     std::wstring tmp = _str;
-    tmp.replace( tmp.find( xa.toWString() ), xa.size(), xb.toWString() );
+    size_t pos = tmp.find( xa.toWString() );
+
+    if( pos != std::string::npos )
+        tmp.replace( pos, xa.size(), xb.toWString() );
 
     return tmp;
 }
@@ -280,4 +288,50 @@ void XString::clear()
 {
     _str.clear();
     _nPos = 0;
+}
+
+std::wstring XString::s2ws( const std::string& s )
+{
+    if( s.empty() == true )
+        return L"";
+
+    std::setlocale( LC_ALL, "en_US.UTF-8" );
+
+    size_t len = s.length() + 1;
+    std::vector<wchar_t> buffer( len );
+
+    size_t convertedChars = 0;
+
+    if( mbstowcs_s( &convertedChars, buffer.data(), len, s.c_str(), len - 1 ) != 0 )
+    {
+        // nothing
+        return L"";
+    }
+    else
+    {
+        return std::wstring( buffer.data() );
+    }
+}
+
+std::wstring XString::c2ws( const char* c )
+{
+    if( c == NULL )
+        return L"";
+
+    std::setlocale( LC_ALL, "en_US.UTF-8" );
+
+    size_t len = std::strlen( c ) + 1;
+    std::vector<wchar_t> buffer( len );
+
+    size_t convertedChars = 0;
+
+    if( mbstowcs_s( &convertedChars, buffer.data(), len, c, len - 1 ) != 0 )
+    {
+        // nothing
+        return L"";
+    }
+    else
+    {
+        return std::wstring( buffer.data() );
+    }
 }
