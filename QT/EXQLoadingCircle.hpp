@@ -51,7 +51,6 @@ namespace Ext
             QWidget*                                 getTopLevelWidget();
 
             QVector< QBrush >                        _vecColor;
-            QVector< QGradient >                     _vecGradient;
 
             QTimer*                                  _timer             = nullptr;
 

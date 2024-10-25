@@ -82,9 +82,11 @@ namespace Ext
                 _timer = nullptr;
             }
 
-            _nCurrentIdx = 0;
-            _nCurrentLength = 0;
-            _isFirstRun = true;
+            if( _painter != nullptr )
+            {
+                delete _painter;
+                _painter = nullptr;
+            }
 
             init();
         }
@@ -96,6 +98,7 @@ namespace Ext
 
         void qLoadingCircle::AddColor( const QColor& color )
         {
+            _vecColor.push_back( QBrush( color ) );
         }
 
         void qLoadingCircle::AddGradientColor( const QGradient& gradient )
@@ -147,6 +150,9 @@ namespace Ext
 
         void qLoadingCircle::paintEvent( QPaintEvent* event )
         {
+            if( _painter == nullptr )
+                return;
+
             _painter->begin( this );
             _painter->restore();
             _painter->setRenderHint( QPainter::Antialiasing );
@@ -204,6 +210,10 @@ namespace Ext
             _timer = new QTimer( this );
             _painter = new QPainter( this );
             setAttribute( Qt::WA_TranslucentBackground );
+            
+            _nCurrentIdx = 0;
+            _nCurrentLength = 0;
+            _isFirstRun = true;
         }
 
         QWidget* qLoadingCircle::getTopLevelWidget()
