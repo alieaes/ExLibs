@@ -71,14 +71,18 @@ namespace Ext
 
         std::wstring u82ws( const std::string& utf8 )
         {
-            std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> wcu8;
-            return wcu8.from_bytes( utf8 );
+            // TODO : codecvt deprecated로 인해 추후 수정
+            // std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> wcu8;
+            // return wcu8.from_bytes( utf8 );
+            return s2ws( utf8 );
         }
 
         std::string ws2u8( const std::wstring& utf16 )
         {
-            std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> wcu8;
-            return wcu8.to_bytes( utf16 );
+            // TODO : codecvt deprecated로 인해 추후 수정
+            // std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> wcu8;
+            // return wcu8.to_bytes( utf16 );
+            return ws2s( utf16 );
         }
     }
 }
