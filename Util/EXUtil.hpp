@@ -40,6 +40,32 @@ private:                                 \
 #define EXT_ENUM_GET( x, e )             \
     c##x().Get( e )
 
+#define EXT_ENUM_FLAG( type )                                                               \
+    inline type operator |( type a, type b )                                                \
+    {                                                                                       \
+        return static_cast< type >( static_cast< int >( a ) | static_cast< int > ( b ) );   \
+    }                                                                                       \
+    inline type operator &( type a, type b )                                                \
+    {                                                                                       \
+        return static_cast< type >( static_cast< int >( a ) & static_cast< int > ( b ) );   \
+    }                                                                                       \
+    inline type operator |=( type a, type b )                                               \
+    {                                                                                       \
+        return a = a | b;                                                                   \
+    }                                                                                       \
+    inline type operator &=( type a, type b )                                               \
+    {                                                                                       \
+        return a = a & b;                                                                   \
+    }                                                                                       \
+    inline type& operator |=( type& a, type b )                                             \
+    {                                                                                       \
+        return a = a | b;                                                                   \
+    }                                                                                       \
+    inline type& operator &=( type& a, type b )                                             \
+    {                                                                                       \
+        return a = a & b;                                                                   \
+    }
+
 namespace Ext
 {
     enum eCaseType
