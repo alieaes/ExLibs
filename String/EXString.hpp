@@ -159,7 +159,12 @@ public:
     /////////////// XString -> X ///////////////
     operator std::string() const
     {
-        return std::string().assign( _str.begin(), _str.end() );
+        if( _str.empty() ) return {};
+
+        int nSize = WideCharToMultiByte( CP_UTF8, 0, _str.c_str(), ( int )_str.size(), NULL, 0, NULL, NULL );
+        std::string result( nSize, 0 );
+        WideCharToMultiByte( CP_UTF8, 0, _str.c_str(), ( int )_str.size(), &result[ 0 ], nSize, NULL, NULL );
+        return result;
     }
     //operator std::wstring() const { return _str; }
 
