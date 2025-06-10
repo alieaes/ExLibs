@@ -5,7 +5,7 @@
   <PropertyGroup />
   <ItemDefinitionGroup>
     <ClCompile>
-      <AdditionalIncludeDirectories>$(ProjectDir);$(SolutionDir);$(SolutionDir)ExLibs;$(SolutionDir)ExLibs\String;$(SolutionDir)ExLibs\Network;$(SolutionDir)ExLibs\Network\include;$(SolutionDir)ExLibs\Logger;$(SolutionDir)ExLibs\DB;$(SolutionDir)ExLibs\DB\SQLite;$(SolutionDir)ExLibs\DB\SQLite\include;$(SolutionDir)ExLibs\Windows;$(SolutionDir)ExLibs\Qt;$(SolutionDir)ExLibs\File;$(SolutionDir)ExLibs\Process;$(SolutionDir)ExLibs\Util;$(SolutionDir)ExLibs\Util\Json\nlohmann\;$(SolutionDir)ExLibs\UUID;$(SolutionDir)ExLibs\External;$(SolutionDir)ExLibs\External\qtservice%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(SolutionDir);$(SolutionDir)ExLibs;$(SolutionDir)ExLibs\String;$(SolutionDir)ExLibs\Network;$(SolutionDir)ExLibs\Network\include;$(SolutionDir)ExLibs\Logger;$(SolutionDir)ExLibs\DB;$(SolutionDir)ExLibs\DB\SQLite;$(SolutionDir)ExLibs\DB\SQLite\include;$(SolutionDir)ExLibs\Windows;$(SolutionDir)ExLibs\Qt;$(SolutionDir)ExLibs\File;$(SolutionDir)ExLibs\Process;$(SolutionDir)ExLibs\Util;$(SolutionDir)ExLibs\Util\Json\nlohmann\;$(SolutionDir)ExLibs\UUID;$(SolutionDir)ExLibs\External;$(SolutionDir)ExLibs\External\qtservice;$(SolutionDir)ExLibs\IPC;$(SolutionDir)ExLibs\Windows;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>_CRT_NO_VA_START_VALIDATION;WINDOWS;WIN32_LEAN_AND_MEAN;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
