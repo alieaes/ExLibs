@@ -12,33 +12,43 @@
 
 namespace Ext
 {
-    namespace File
+    namespace IPC
     {
         constexpr int IPC_DEFAULT_MAX_THREAD_COUNT = 10;
         constexpr int IPC_DEFAULT_TIMEOUT = 10;
 
         struct stIPCData
         {
-            unsigned int     serverData[ 128 ];
-            size_t           serverDataSize = 0;
-            bool             isFinishSVC = false;
+            // client -> server
+            unsigned int     reqData[ 128 ];
+            size_t           requestSize    = 0;
+            bool             hasRequest     = false;
 
-            unsigned int     clientData[ 128 ];
-            size_t           clientDataSize = 0;
-            bool             isFinishClient = false;
-            bool             needResponse = false;
-            char             sSenderIPCName[ 256 ];
+            // server -> client
+            unsigned int     resData[ 128 ];
+            size_t           responseSize   = 0;
+            bool             hasResponse    = false;
+            bool             needResponse   = false;
+            wchar_t          sSenderIPCName[ 256 ];
 
-            unsigned int     nSenderPID = 0;
-            int64_t          timeout = 0;
+            unsigned int     nSenderPID     = 0;
+            int64_t          timeout        = 0;
 
-            bool             isInit = false;
+            bool             isInit         = false;
 
-            bool             bCheckIPC = false;
+            bool             bCheckIPC      = false;
 
             void clear()
             {
-                isInit = true;
+                isInit       = true;
+
+                nSenderPID   = 0;
+
+                hasRequest   = false;
+                hasResponse  = false;
+                needResponse = false;
+
+                bCheckIPC    = false;
             }
         };
 
@@ -55,7 +65,6 @@ namespace Ext
             int               nMaxThreadCount = IPC_DEFAULT_MAX_THREAD_COUNT;
             int               nTimeoutSec     = IPC_DEFAULT_TIMEOUT;
         };
-
 
         enum eIPCResult
         {
@@ -115,10 +124,12 @@ namespace Ext
         {
             std::wstring      sIPCName;
             std::wstring      sDataIPCName;
-            spIPCServer      spIPCServer;
+            spIPCServer       spIPCServer;
         };
 
         static std::map< std::string, stIPCShm > mapIPC;
+
+        std::wstring                     GetDataIPCName( std::wstring sIPCName );
 
         eIPCResult                       GetIPCLastError();
         std::string                      GetIPCStrError( eIPCResult err );
