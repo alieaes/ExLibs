@@ -59,11 +59,11 @@ namespace Ext
         struct stIPCInfo
         {
             std::wstring      sIPCName;
-            std::wstring      sDataIPCName;
             fnCallback        fnCallback;
             void*             pContext;
             int               nMaxThreadCount = IPC_DEFAULT_MAX_THREAD_COUNT;
             int               nTimeoutSec     = IPC_DEFAULT_TIMEOUT;
+            HANDLE            hMutex          = nullptr;
         };
 
         enum eIPCResult
@@ -98,11 +98,33 @@ namespace Ext
             IPC_RESULT_MMAP_OPEN_FAILED = 61
         };
 
+        class CIPCMutex
+        {
+        public:
+            CIPCMutex( std::wstring sMutexName, int nTimeout = 0 );
+            ~CIPCMutex();
+
+            bool                            Create();
+            bool                            Open();
+            void                            Release();
+            HANDLE                          Get() { return _hMutex; }
+
+            // Close는 직접 호출해야함!
+            void                            Close();
+
+        private:
+            std::wstring                    _sMutexName;
+            int                             _nTimeout = 0;
+            HANDLE                          _hMutex   = nullptr;
+        };
+
         class CIPCServer
         {
         public:
             CIPCServer( stIPCInfo& info );
             ~CIPCServer();
+
+            void                            CloseMutex();
 
         private:
             void                            main();
@@ -123,19 +145,23 @@ namespace Ext
         struct stIPCShm
         {
             std::wstring      sIPCName;
-            std::wstring      sDataIPCName;
             spIPCServer       spIPCServer;
         };
 
-        static std::map< std::string, stIPCShm > mapIPC;
+        // SERVER
+        static std::map< std::wstring, stIPCShm > mapIPC;
 
-        std::wstring                     GetDataIPCName( std::wstring sIPCName );
+        // CLIENT
+        static std::atomic_uint                   uIPC = 0;
+
+        std::wstring                     GetRequestIPCName( const std::wstring& sIPCName );
+        std::wstring                     GetResponseIPCName( const std::wstring& sIPCName );
 
         eIPCResult                       GetIPCLastError();
         std::string                      GetIPCStrError( eIPCResult err );
         bool                             CreateIPC( const std::wstring& sIPCName, fnCallback fnCallback, void* pContext, int nMaxThreadCount = IPC_DEFAULT_MAX_THREAD_COUNT, int timeOutSec = IPC_DEFAULT_TIMEOUT );
         bool                             DestroyIPC( const std::wstring& sIPCName );
-        bool                             SendIPC( const std::wstring& sIPCName, void* requestData, size_t requestSize, void* responseData, size_t& responseSize, int timeOutSec = IPC_DEFAULT_TIMEOUT, int nCheckIPC = 0 );
+        bool                             SendIPC( const std::wstring& sIPCName, void* requestData, size_t requestSize, void* responseData, size_t& responseSize, int timeOutSec = IPC_DEFAULT_TIMEOUT, bool bCheckIPC = 0 );
         bool                             CheckIPC( const std::wstring& sIPCName, int nCheckIPC );
     }
 }
