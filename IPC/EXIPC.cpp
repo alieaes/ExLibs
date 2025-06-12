@@ -7,9 +7,13 @@
 
 constexpr size_t SHM_SIZE = sizeof( Ext::IPC::stIPCData );
 
-Ext::IPC::CIPCMutex::CIPCMutex( std::wstring sMutexName, int nTimeout /*= 0*/ )
+Ext::IPC::CIPCMutex::CIPCMutex( std::wstring sMutexName, int64_t nTimeout /*= 0*/ )
 {
     _sMutexName = sMutexName;
+
+    if( nTimeout <= 0 )
+        nTimeout = INFINITE;
+
     _nTimeout = nTimeout;
 }
 
@@ -20,7 +24,7 @@ Ext::IPC::CIPCMutex::~CIPCMutex()
 
 bool Ext::IPC::CIPCMutex::Create()
 {
-    _hMutex = OpenMutex( SYNCHRONIZE, FALSE, _sMutexName.c_str() );
+    _hMutex = CreateMutex( NULL, FALSE, _sMutexName.c_str() );
 
     if( ::GetLastError() == ERROR_ALREADY_EXISTS )
         _hMutex = OpenMutex( SYNCHRONIZE, FALSE, _sMutexName.c_str() );
@@ -28,7 +32,10 @@ bool Ext::IPC::CIPCMutex::Create()
     if( _hMutex == nullptr )
         return false;
     else
+    {
+        Release();
         return true;
+    }
 }
 
 bool Ext::IPC::CIPCMutex::Open()
@@ -86,6 +93,9 @@ Ext::IPC::CIPCServer::~CIPCServer()
     }
 
     CloseMutex();
+
+    if( _info.hMapping != nullptr )
+        CloseHandle( _info.hMapping );
 }
 
 void Ext::IPC::CIPCServer::CloseMutex()
@@ -110,20 +120,34 @@ void Ext::IPC::CIPCServer::main()
     for( int idx = 1; idx < _info.nMaxThreadCount; idx++ )
         _vecThread.push_back( std::make_shared<std::thread>( std::thread( [ this ]() { worker(); } ) ) );
 
-    HANDLE hMapFile = OpenFileMapping( FILE_MAP_ALL_ACCESS, FALSE, _info.sIPCName.c_str() );
+    HANDLE hMapFile = nullptr;
 
     while( _isStop == false )
     {
         Sleep( 10 );
 
-        // NOTE : 종료해야하는지?
-        if( hMapFile == nullptr )
-            hMapFile = OpenFileMapping( FILE_MAP_ALL_ACCESS, FALSE, _info.sIPCName.c_str() );
-
         if( _info.hMutex )
             WaitForSingleObject( _info.hMutex, INFINITE );
 
+        // NOTE : 종료해야하는지?
+        if( hMapFile == nullptr )
+            hMapFile = OpenFileMapping( FILE_MAP_ALL_ACCESS, FALSE, GetGlobalName( _info.sIPCName ).c_str() );
+
         void* pBuf = MapViewOfFile( hMapFile, FILE_MAP_ALL_ACCESS, 0, 0, SHM_SIZE );
+
+        if( pBuf == nullptr )
+        {
+            if( hMapFile != nullptr )
+            {
+                CloseHandle( hMapFile );
+                hMapFile = nullptr;
+            }
+
+            if( _info.hMutex != nullptr )
+                ReleaseMutex( _info.hMutex );
+
+            continue;
+        }
 
         void* reqBuffer = nullptr;
         size_t reqSize = 0;
@@ -154,6 +178,12 @@ void Ext::IPC::CIPCServer::main()
         if( pBuf != nullptr )
             UnmapViewOfFile( pBuf );
 
+        if( hMapFile != nullptr )
+        {
+            CloseHandle( hMapFile );
+            hMapFile = nullptr;
+        }
+
         if( _info.hMutex != nullptr )
             ReleaseMutex( _info.hMutex );
     }
@@ -164,6 +194,7 @@ void Ext::IPC::CIPCServer::worker()
     while( _isStop == false )
     {
         auto data = _queue.DeQueue();
+        HANDLE hMapDataFile = nullptr;
 
         if( _isStop == true )
             break;
@@ -180,15 +211,19 @@ void Ext::IPC::CIPCServer::worker()
 
         if( isUsingMmap == true )
         {
-            CIPCMutex reqMutex( GetRequestIPCName( data.sSenderIPCName ), INFINITE );
+            CIPCMutex reqMutex( GetRequestIPCName( data.sSenderIPCName ), data.timeout );
 
             if( reqMutex.Open() == true )
             {
                 HANDLE hMapFile = OpenFileMapping( FILE_MAP_ALL_ACCESS, FALSE, GetGlobalName( GetRequestIPCName( data.sSenderIPCName ) ).c_str() );
 
                 void* pBuf = MapViewOfFile( hMapFile, FILE_MAP_ALL_ACCESS, 0, 0, SHM_SIZE );
-                reqData = malloc( data.requestSize );
-                memcpy( reqData, pBuf, data.requestSize );
+
+                if ( pBuf != nullptr )
+                {
+                    reqData = malloc( data.requestSize );
+                    memcpy( reqData, pBuf, data.requestSize );
+                }
 
                 if( pBuf != nullptr )
                     UnmapViewOfFile( pBuf );
@@ -227,18 +262,27 @@ void Ext::IPC::CIPCServer::worker()
         if( data.responseSize == 0 && resData == nullptr )
             continue;
 
+        CIPCMutex resMutex( GetResponseIPCName( data.sSenderIPCName ), data.timeout );
+
+        if( resMutex.Create() == false )
+            continue;
+
         {
-            CIPCMutex reqMutex( data.sSenderIPCName, INFINITE );
+            CIPCMutex reqMutex( data.sSenderIPCName, data.timeout );
 
             if( reqMutex.Open() == true )
             {
                 HANDLE hMapFile = OpenFileMapping( FILE_MAP_ALL_ACCESS, FALSE, GetGlobalName( data.sSenderIPCName ).c_str() );
                 void* pBuf = MapViewOfFile( hMapFile, FILE_MAP_ALL_ACCESS, 0, 0, SHM_SIZE );
+
+                if( pBuf == nullptr )
+                    break;
+
                 auto* pIPCData = reinterpret_cast< stIPCData* >( pBuf );
 
                 pIPCData->hasResponse = true;
                 pIPCData->hasRequest = false;
-                pIPCData->nSenderPID = _getpid();
+                pIPCData->nSenderPID = GetCurrentProcessId();
 
                 //if( _info.sIPCName.size() < 256 )
                 std::copy( _info.sIPCName.begin(), _info.sIPCName.end(), std::begin( pIPCData->sSenderIPCName ) );
@@ -246,20 +290,19 @@ void Ext::IPC::CIPCServer::worker()
                 pIPCData->isInit = true;
                 pIPCData->responseSize = data.responseSize;
 
-                if( data.responseSize > sizeof( pIPCData->resData ) || pIPCData->bCheckIPC == true )
+                if( data.responseSize > sizeof( pIPCData->resData ) || data.bCheckIPC == true )
                 {
-                    HANDLE hMapDataFile = nullptr;
-
-                    CIPCMutex resMutex( GetResponseIPCName( data.sSenderIPCName ), INFINITE );
                     // 데드락 조심
                     if( resMutex.Open() == true )
                     {
-                        hMapDataFile = CreateFileMapping( INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, 0, static_cast< DWORD >( SHM_SIZE ), GetResponseIPCName( data.sSenderIPCName ).c_str() );
+                        hMapDataFile = CreateFileMapping( INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, 0, static_cast< DWORD >( SHM_SIZE ), GetGlobalName( GetResponseIPCName( data.sSenderIPCName ) ).c_str() );
 
                         if( hMapDataFile != nullptr )
                         {
                             void* pDataBuf = MapViewOfFile( hMapDataFile, FILE_MAP_ALL_ACCESS, 0, 0, SHM_SIZE );
-                            memcpy( pDataBuf, resData, data.responseSize );
+
+                            if( pDataBuf != nullptr )
+                                memcpy( pDataBuf, resData, data.responseSize );
 
                             if( pDataBuf != nullptr )
                                 UnmapViewOfFile( pDataBuf );
@@ -267,9 +310,6 @@ void Ext::IPC::CIPCServer::worker()
                     }
 
                     resMutex.Release();
-
-                    if( hMapDataFile != nullptr )
-                        CloseHandle( hMapDataFile );
                 }
                 else
                 {
@@ -286,6 +326,50 @@ void Ext::IPC::CIPCServer::worker()
             {
                 // ERROR
             }
+        }
+
+        {
+            int nCheckTime = 0;
+
+            while ( nCheckTime < data.timeout )
+            {
+                HANDLE hMapFile = OpenFileMapping( FILE_MAP_READ, FALSE, GetGlobalName( data.sSenderIPCName ).c_str() );
+
+                if( hMapFile == nullptr )
+                    break;
+
+                void* pBuf = MapViewOfFile( hMapFile, FILE_MAP_READ, 0, 0, SHM_SIZE );
+
+                if( pBuf == nullptr )
+                {
+                    if( hMapFile != nullptr )
+                        CloseHandle( hMapFile );
+
+                    break;
+                }
+
+                auto* pIPCData = reinterpret_cast< stIPCData* >( pBuf );
+
+                if( pIPCData->isDone == true )
+                {
+                    if( hMapFile != nullptr )
+                        CloseHandle( hMapFile );
+
+                    if( pBuf != nullptr )
+                        UnmapViewOfFile( pBuf );
+
+                    break;
+                }
+
+                if( hMapFile != nullptr )
+                    CloseHandle( hMapFile );
+
+                if( pBuf != nullptr )
+                    UnmapViewOfFile( pBuf );
+            }
+
+            if( hMapDataFile != nullptr )
+                CloseHandle( hMapDataFile );
         }
     }
 }
@@ -313,21 +397,22 @@ bool Ext::IPC::CreateIPC( const std::wstring& sIPCName, const fnCallback& fnCall
     bool isSuccess = false;
 
     stIPCShm shm;
+    stIPCInfo info;
 
-    HANDLE hMapFile = CreateFileMapping( INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, 0, static_cast< DWORD >( SHM_SIZE ), GetGlobalName( sIPCName ).c_str() );
+    info.hMapping = CreateFileMapping( INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, 0, static_cast< DWORD >( SHM_SIZE ), GetGlobalName( sIPCName ).c_str() );
 
     void* pBuf = nullptr;
 
     do
     {
-        if( hMapFile == nullptr )
+        if( info.hMapping == nullptr )
             break;
 
-        pBuf = MapViewOfFile( hMapFile, FILE_MAP_ALL_ACCESS, 0, 0, SHM_SIZE );
+        pBuf = MapViewOfFile( info.hMapping, FILE_MAP_ALL_ACCESS, 0, 0, SHM_SIZE );
 
         if( pBuf == nullptr )
         {
-            CloseHandle( hMapFile );
+            CloseHandle( info.hMapping );
             break;
         }
 
@@ -344,7 +429,6 @@ bool Ext::IPC::CreateIPC( const std::wstring& sIPCName, const fnCallback& fnCall
 
         pIPCData->isInit = true;
 
-        stIPCInfo info;
         info.sIPCName = sIPCName;
         info.fnCallback = fnCallback;
         info.nMaxThreadCount = nMaxThreadCount;
@@ -367,9 +451,6 @@ bool Ext::IPC::CreateIPC( const std::wstring& sIPCName, const fnCallback& fnCall
     if( pBuf != nullptr )
         UnmapViewOfFile( pBuf );
 
-    if( hMapFile != nullptr )
-        CloseHandle( hMapFile );
-
     return isSuccess;
 }
 
@@ -382,29 +463,61 @@ bool Ext::IPC::SendIPC( const std::wstring& sIPCName, void* requestData, size_t 
     std::wstring sResIPCName = GetResponseIPCName( sIPCClientName );
 
     int nCheckMs = 0;
-    //HANDLE hClientMapFile = CreateFileMapping( INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, 0, static_cast< DWORD >( SHM_SIZE ), sIPCClientName.c_str() );
+    HANDLE hClientMapFile = CreateFileMapping( INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, 0, static_cast< DWORD >( SHM_SIZE ), GetGlobalName( sIPCClientName ).c_str() );
+    HANDLE hReqMapFile = CreateFileMapping( INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, 0, static_cast< DWORD >( requestSize ), GetGlobalName( GetRequestIPCName( sIPCClientName ) ).c_str() );
+
+    CIPCMutex reqMutex( GetRequestIPCName( sIPCClientName ), timeOutSec );
+    CIPCMutex reqClientMutex( sIPCClientName, timeOutSec );
 
     do
     {
-        CIPCMutex ServerMutex( sIPCName, timeOutSec );
-
-        if( ServerMutex.Open() == false )
+        if( reqMutex.Create() == false )
             break;
 
-        HANDLE hMapFile = OpenFileMapping( FILE_MAP_ALL_ACCESS, FALSE, sIPCNameFinal.c_str() );
-
-        if( hMapFile == nullptr )
+        if( reqClientMutex.Create() == false )
             break;
+
+        if( hClientMapFile == nullptr )
+            break;
+
+        bool isSendSuccess = false;
 
         while( nCheckMs < timeOutSec * 100 )
         {
             do
             {
+                CIPCMutex ServerMutex( sIPCName, timeOutSec );
+
+                if( ServerMutex.Open() == false )
+                    break;
+
+                HANDLE hMapFile = OpenFileMapping( FILE_MAP_ALL_ACCESS, FALSE, sIPCNameFinal.c_str() );
+
+                if( hMapFile == nullptr )
+                    break;
+
                 void* pBuf = MapViewOfFile( hMapFile, FILE_MAP_ALL_ACCESS, 0, 0, SHM_SIZE );
+
+                if( pBuf == nullptr )
+                {
+                    if( hMapFile != nullptr )
+                        CloseHandle( hMapFile );
+
+                    break;
+                }
+
                 auto* pServerData = reinterpret_cast< stIPCData* >( pBuf );
 
                 if( pServerData->isInit == false || pServerData->hasRequest == true )
+                {
+                    if( pBuf != nullptr )
+                        UnmapViewOfFile( pBuf );
+
+                    if( hMapFile != nullptr )
+                        CloseHandle( hMapFile );
+
                     break;
+                }
 
                 bool isUsingMmap = false;
 
@@ -413,7 +526,7 @@ bool Ext::IPC::SendIPC( const std::wstring& sIPCName, void* requestData, size_t 
 
                 pServerData->hasResponse = false;
 
-                pServerData->nSenderPID = _getpid();
+                pServerData->nSenderPID = GetCurrentProcessId();
                 pServerData->requestSize = requestSize;
                 std::copy( sIPCClientName.begin(), sIPCClientName.end(), std::begin( pServerData->sSenderIPCName ) );
                 pServerData->hasRequest = true;
@@ -421,20 +534,28 @@ bool Ext::IPC::SendIPC( const std::wstring& sIPCName, void* requestData, size_t 
                 pServerData->timeout = std::time( nullptr ) + timeOutSec;
                 pServerData->bCheckIPC = bCheckIPC;
 
-                if( isUsingMmap == true || bCheckIPC == 1 )
+                if( isUsingMmap == true || bCheckIPC == true )
                 {
-                    CIPCMutex reqMutex( GetRequestIPCName( sIPCClientName ), INFINITE );
-
                     if( reqMutex.Open() == true )
                     {
-                        HANDLE hMapFile = CreateFileMapping( INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, 0, static_cast< DWORD >( requestSize ), GetGlobalName( GetRequestIPCName( sIPCClientName ) ).c_str() );
+                        void* pReqBuf = MapViewOfFile( hReqMapFile, FILE_MAP_ALL_ACCESS, 0, 0, SHM_SIZE );
 
-                        void* pBuf = MapViewOfFile( hMapFile, FILE_MAP_ALL_ACCESS, 0, 0, SHM_SIZE );
-                        pBuf = malloc( requestSize );
-                        memcpy( requestData, pBuf, requestSize );
+                        if( pReqBuf == nullptr )
+                        {
+                            if( pBuf != nullptr )
+                                UnmapViewOfFile( pBuf );
 
-                        if( pBuf != nullptr )
-                            UnmapViewOfFile( pBuf );
+                            if( hMapFile != nullptr )
+                                CloseHandle( hMapFile );
+
+                            break;
+                        }
+
+                        requestData = malloc( requestSize );
+                        memcpy( requestData, pReqBuf, requestSize );
+
+                        if( pReqBuf != nullptr )
+                            UnmapViewOfFile( pReqBuf );
                     }
                     else
                     {
@@ -446,11 +567,118 @@ bool Ext::IPC::SendIPC( const std::wstring& sIPCName, void* requestData, size_t 
                     memcpy( pServerData->reqData, requestData, requestSize );
                 }
 
+                isSendSuccess = true;
+
+                if( pBuf != nullptr )
+                    UnmapViewOfFile( pBuf );
+
+                if( hMapFile != nullptr )
+                    CloseHandle( hMapFile );
 
             } while( false );
+
+            reqMutex.Release();
+
+            if( isSendSuccess == true )
+                break;
+
+            Sleep( 10 );
+            nCheckMs++;
         }
 
+        bool isRecvSuccess = false;
+
+        while( nCheckMs < timeOutSec * 100 )
+        {
+            HANDLE hMapFile = nullptr;
+            HANDLE hResMapFile = nullptr;
+            void* pClientBuf = nullptr;
+            void* pClientResBuf = nullptr;
+
+            do
+            {
+                if( reqClientMutex.Open() == true )
+                {
+                    hMapFile = OpenFileMapping( FILE_MAP_ALL_ACCESS, FALSE, GetGlobalName( sIPCClientName ).c_str() );
+                    pClientBuf = MapViewOfFile( hMapFile, FILE_MAP_ALL_ACCESS, 0, 0, SHM_SIZE );
+
+                    if( pClientBuf == nullptr )
+                        break;
+
+                    auto* pClientIPCData = reinterpret_cast< stIPCData* >( pClientBuf );
+
+                    if( pClientIPCData->hasRequest == false && pClientIPCData->hasResponse == true )
+                    {
+                        bool isUsingMmap = false;
+
+                        if( pClientIPCData->responseSize > sizeof( pClientIPCData->resData ) )
+                            isUsingMmap = true;
+
+                        responseSize = pClientIPCData->responseSize;
+
+                        if( isUsingMmap == true || bCheckIPC == true )
+                        {
+                            CIPCMutex reqMutex( GetResponseIPCName( sIPCClientName ), timeOutSec );
+
+                            if( reqMutex.Open() == true )
+                            {
+                                hResMapFile = OpenFileMapping( FILE_MAP_ALL_ACCESS, FALSE, GetGlobalName( GetResponseIPCName( sIPCClientName ) ).c_str() );
+
+                                pClientResBuf = MapViewOfFile( hResMapFile, FILE_MAP_ALL_ACCESS, 0, 0, SHM_SIZE );
+
+                                if( pClientResBuf == nullptr )
+                                    break;
+
+                                //responseData = malloc( responseSize );
+                                memcpy( responseData, pClientResBuf, responseSize );
+
+                                if( pClientResBuf != nullptr )
+                                    UnmapViewOfFile( pClientResBuf );
+                            }
+                        }
+                        else
+                        {
+                            memcpy( responseData, pClientIPCData->resData, pClientIPCData->responseSize );
+                        }
+
+                        pClientIPCData->isDone = true;
+                        isRecvSuccess = true;
+                    }
+                }
+
+            } while( false );
+
+            reqClientMutex.Release();
+
+            if( hMapFile != nullptr )
+                CloseHandle( hMapFile );
+
+            if( hResMapFile != nullptr )
+                CloseHandle( hResMapFile );
+
+            if( pClientBuf != nullptr )
+                UnmapViewOfFile( pClientBuf );
+
+            if( pClientResBuf != nullptr )
+                UnmapViewOfFile( pClientResBuf );
+
+            if( isRecvSuccess == true )
+                break;
+
+            Sleep( 10 );
+            nCheckMs++;
+        }
+
+        if( isSendSuccess == true && isRecvSuccess == true )
+            isSuccess = true;
+
     } while( false );
+
+    if( hReqMapFile != nullptr )
+        CloseHandle( hReqMapFile );
+
+    if( hClientMapFile != nullptr )
+        CloseHandle( hClientMapFile );
 
     return isSuccess;
 }

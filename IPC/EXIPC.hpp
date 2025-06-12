@@ -38,6 +38,8 @@ namespace Ext
 
             bool             bCheckIPC      = false;
 
+            bool             isDone         = false;
+
             void clear()
             {
                 isInit       = true;
@@ -49,6 +51,7 @@ namespace Ext
                 needResponse = false;
 
                 bCheckIPC    = false;
+                isDone       = false;
             }
         };
 
@@ -64,6 +67,7 @@ namespace Ext
             int               nMaxThreadCount = IPC_DEFAULT_MAX_THREAD_COUNT;
             int               nTimeoutSec     = IPC_DEFAULT_TIMEOUT;
             HANDLE            hMutex          = nullptr;
+            HANDLE            hMapping        = nullptr;
         };
 
         enum eIPCResult
@@ -101,7 +105,7 @@ namespace Ext
         class CIPCMutex
         {
         public:
-            CIPCMutex( std::wstring sMutexName, int nTimeout = 0 );
+            CIPCMutex( std::wstring sMutexName, int64_t nTimeout = 0 );
             ~CIPCMutex();
 
             bool                            Create();
@@ -114,7 +118,7 @@ namespace Ext
 
         private:
             std::wstring                    _sMutexName;
-            int                             _nTimeout = 0;
+            int64_t                         _nTimeout = 0;
             HANDLE                          _hMutex   = nullptr;
         };
 
@@ -156,10 +160,11 @@ namespace Ext
 
         std::wstring                     GetRequestIPCName( const std::wstring& sIPCName );
         std::wstring                     GetResponseIPCName( const std::wstring& sIPCName );
+        std::wstring                     GetGlobalName( const std::wstring& sIPCName );
 
         eIPCResult                       GetIPCLastError();
         std::string                      GetIPCStrError( eIPCResult err );
-        bool                             CreateIPC( const std::wstring& sIPCName, fnCallback fnCallback, void* pContext, int nMaxThreadCount = IPC_DEFAULT_MAX_THREAD_COUNT, int timeOutSec = IPC_DEFAULT_TIMEOUT );
+        bool                             CreateIPC( const std::wstring& sIPCName, const fnCallback& fnCallback, void* pContext, int nMaxThreadCount = IPC_DEFAULT_MAX_THREAD_COUNT, int timeOutSec = IPC_DEFAULT_TIMEOUT );
         bool                             DestroyIPC( const std::wstring& sIPCName );
         bool                             SendIPC( const std::wstring& sIPCName, void* requestData, size_t requestSize, void* responseData, size_t& responseSize, int timeOutSec = IPC_DEFAULT_TIMEOUT, bool bCheckIPC = 0 );
         bool                             CheckIPC( const std::wstring& sIPCName, int nCheckIPC );
