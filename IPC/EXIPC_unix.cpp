@@ -5,6 +5,7 @@
 #include <fcntl.h>
 #include <iostream>
 #include <signal.h>
+#include <cerrno>
 
 #if defined(__APPLE__) || defined(__FreeBSD__)
 const char* AppName = getprogname();
@@ -40,24 +41,22 @@ void setIPCLastError( eIPCResult err )
     LAST_RESULT_CODE = err;
 }
 
-void cleanupIPC( const std::string& sIPCName, stIPCData* data, int shmfd, sem_t* sem = SEM_FAILED )
+void cleanupIPC( const std::string& sIPCName, int shmfd, sem_t* sem = SEM_FAILED )
 {
-    if( data != nullptr )
-        munmap( data, sizeof( data ) );
-
     if( shmfd != -1 )
     {
         close( shmfd );
-
         if( sIPCName.empty() == false )
             shm_unlink( sIPCName.c_str() );
     }
 
     if( sem != SEM_FAILED )
+    {
         sem_close( sem );
-
-    if( sIPCName.empty() == false )
-        sem_unlink( sIPCName.c_str() );
+        
+        if( sIPCName.empty() == false )
+            sem_unlink( sIPCName.c_str() );
+    }
 }
 
 void* openMmapIPC( int nShmfd, size_t size, bool* isSuccess = nullptr )
@@ -80,6 +79,7 @@ void* openMmapIPC( int nShmfd, size_t size, bool* isSuccess = nullptr )
         if( data == MAP_FAILED )
         {
             ERR_LOG( "[IPC] Error mapping shared memory", errno );
+            data = nullptr;
             break;
         }
 
@@ -93,25 +93,18 @@ void* openMmapIPC( int nShmfd, size_t size, bool* isSuccess = nullptr )
 
 bool isExistIPC( const std::string& sIPCName )
 {
-    bool isExist = false;
+    if( mapIPC.isEmpty() == true )
+        return false;
 
-    do
+    for( const auto& ipc : mapIPC )
     {
-        if( mapIPC.isEmpty() == true )
-            break;
-
-        for( const auto& ipc : mapIPC )
+        if( ipc.sIPCName.compare( sIPCName ) == 0 || ipc.sDataIPCName.compare( sIPCName ) == 0 )
         {
-            if( ipc.sIPCName.compare( sIPCName ) == 0 || ipc.sDataIPCName.compare( sIPCName ) == 0 )
-            {
-                isExist = true;
-                break;
-            }
+            return true;
         }
+    }
 
-    } while( false );
-
-    return isExist;
+    return false;
 }
 
 int createShmIPC( const std::string& sIPCName )
@@ -122,7 +115,7 @@ int createShmIPC( const std::string& sIPCName )
     {
         if( isExistIPC( sIPCName ) == true )
         {
-            ERR_LOG( "[IPC] Already Exist IPC", errno );
+            ERR_LOG( "[IPC] Already Exist IPC", 0 );
             break;
         }
 
@@ -135,10 +128,11 @@ int createShmIPC( const std::string& sIPCName )
 
         if( ftruncate( nShmfd, sizeof( stIPCData ) ) == -1 )
         {
-            if( errno != 22 )
+            if( errno != EINVAL )
             {
                 ERR_LOG( "[IPC] Error setting size of shared memory", errno );
-                cleanupIPC( sIPCName, nullptr, nShmfd );
+                cleanupIPC( sIPCName, nShmfd );
+                nShmfd = -1;
                 break;
             }
         }
@@ -154,10 +148,10 @@ int openShmIPC( const std::string& sIPCName )
 
     do
     {
-        nShmfd = shm_open( sIPCName.c_str(), O_RDWR, 0666 );
+        nShmfd = shm_open( sIPCName.c_str(), O_RDWR, 0600 );
         if( nShmfd == -1 )
         {
-            ERR_LOG( "[IPC] Error Creating Shared Memory", errno );
+            ERR_LOG( "[IPC] Error Opening Shared Memory", errno );
             break;
         }
 
@@ -170,11 +164,11 @@ sem_t* createSemIPC( const std::string& sIPCName )
 {
     sem_unlink( sIPCName.c_str() );
 
-    sem_t* sem = sem_open( sIPCName.c_str(), O_CREAT, 0666, 1 );
+    sem_t* sem = sem_open( sIPCName.c_str(), O_CREAT, 0600, 1 );
     if ( sem == SEM_FAILED )
     {
         ERR_LOG( "[IPC] SEM Open Error", errno );
-        cleanupIPC( sIPCName, nullptr, -1 );
+        cleanupIPC( sIPCName, -1 );
     }
 
     return sem;
@@ -186,7 +180,7 @@ sem_t* openSemIPC( const std::string& sIPCName )
     if ( sem == SEM_FAILED )
     {
         ERR_LOG( "[IPC] SEM Open Error", errno );
-        cleanupIPC( sIPCName, nullptr, -1 );
+        cleanupIPC( sIPCName, -1 );
     }
 
     return sem;
@@ -222,7 +216,10 @@ public:
     void Close()
     {
         if( _sem != SEM_FAILED )
+        {
             sem_close( _sem );
+            _sem = SEM_FAILED;
+        }
     }
 
     void Destroy()
@@ -270,7 +267,10 @@ public:
     void Close()
     {
         if( _shmfd != -1 )
+        {
             close( _shmfd );
+            _shmfd = -1;
+        }
     }
 
     void Destroy()
@@ -279,8 +279,6 @@ public:
 
         if( _sIPCName.empty() == false )
             shm_unlink( _sIPCName.c_str() );
-
-        _shmfd = -1;
     }
 
     int Get() { return _shmfd; }
@@ -304,21 +302,33 @@ public:
 
     void* Open( size_t size )
     {
+        if( _data != nullptr )
+            return _data;
+            
         _data = openMmapIPC( _shmfd, size );
+        
+        if( _data != nullptr )
+            _size = size;
+            
         return _data;
     }
 
     void Close()
     {
         if( _data != nullptr )
-            munmap( _data, sizeof( _data ) );
+        {
+            munmap( _data, _size );
+            _data = nullptr;
+            _size = 0;
+        }
     }
 
     void* Get() { return _data; }
-    bool IsVaild() { return _data != nullptr; }
+    bool IsVaild() { return _data != nullptr && _data != MAP_FAILED; }
 
 private:
     void*       _data        = nullptr;
+    size_t      _size        = 0;
     int         _shmfd       = -1;
 };
 
@@ -373,7 +383,6 @@ void CIPCServer::main()
         return;
 
     CIPCMmap mmap( shm.Get() );
-
     if( mmap.Open( sizeof( stIPCData ) ) == nullptr )
         return;
 
@@ -383,6 +392,10 @@ void CIPCServer::main()
 
         SemaphoreGuard guard( sem.Get() );
         stIPCData* data = (stIPCData*) mmap.Get();
+		
+		if( data == nullptr )
+			continue;
+		
         if( data->hasRequest == true )
         {
             if( kill( data->nSenderPID, 0 ) != 0 )
@@ -393,10 +406,6 @@ void CIPCServer::main()
                 data->needResponse = false;
                 continue;
             }
-
-            //std::cout << "[IPC] reqData size = " << sizeof( data->reqData ) << std::endl;
-            //std::cout << "[IPC] struct size = " << sizeof( _info ) << std::endl;
-            //std::cout << "[IPC] TEST = pid=" << data->nSenderPID << std::endl;
 
             stIPCData qData = *data;
             _queue.EnQueue( qData );
@@ -421,29 +430,30 @@ void CIPCServer::worker()
         if( data.hasRequest == false )
             continue;
 
-        bool isUsingMmap = false;
-
-        if( data.requestSize > sizeof( data.reqData ) || data.nCheckIPC == 1 )
-            isUsingMmap = true;
+        bool isUsingMmap = ( data.requestSize > sizeof( data.reqData ) || data.nCheckIPC == 1 );
 
         void* reqData = nullptr;
         if( isUsingMmap == true )
         {
             CIPCShm serverDataShm( _info.sDataIPCName );
-            CIPCSem serverDataSem( _info.sDataIPCName );
-
             if( serverDataShm.Open() == -1 )
-                continue;
+            	continue;
 
+            CIPCSem serverDataSem( _info.sDataIPCName );
             if( serverDataSem.Open() == SEM_FAILED )
-                continue;
+            	continue;
 
             SemaphoreGuard serverDataGuard( serverDataSem.Get() );
             CIPCMmap serverMmap( serverDataShm.Get() );
-            void* serverData = serverMmap.Open( sizeof( data.requestSize ) );
+            void* serverData = serverMmap.Open( data.requestSize );
+            if( serverData == nullptr )
+            	continue;
+
             reqData = malloc( data.requestSize );
+            if( reqData == nullptr )
+            	continue;
+            	
             memcpy( reqData, serverData, data.requestSize );
-            //reqData = serverData;
         }
         else
         {
@@ -463,33 +473,31 @@ void CIPCServer::worker()
 
         if( data.nCheckIPC != 0 )
         {
-            quint64 quTestMsg = 0xF1F2F3F4F5F6F7F8;
+            static quint64 quTestMsg = 0xF1F2F3F4F5F6F7F8;
             resData = (void*)&quTestMsg;
             data.responseSize = sizeof( quint64 );
         }
 
-        if( data.needResponse == false && data.nCheckIPC == 0 )
-            continue;
-
-        if( data.responseSize != 0 && resData == nullptr )
+        if( ( data.needResponse == false && data.nCheckIPC == 0 ) || ( data.responseSize != 0 && resData == nullptr ) )
             continue;
 
         CIPCShm clientShm( data.sSenderIPCName );
-        CIPCSem clientSem( data.sSenderIPCName );
-
         if( clientShm.Open() == -1 )
-            continue;
+        	continue;
 
+        CIPCSem clientSem( data.sSenderIPCName );
         if( clientSem.Open() == SEM_FAILED )
-            continue;
+        	continue;
 
         CIPCMmap clientMmap( clientShm.Get() );
         {
             SemaphoreGuard guard( clientSem.Get() );
             if( clientMmap.Open( sizeof( stIPCData ) ) == nullptr )
-                continue;
+            	continue;
 
             stIPCData* client = (stIPCData*)clientMmap.Get();
+            if( client == nullptr )
+            	continue;
 
             client->hasResponse = true;
             client->hasRequest = false;
@@ -501,20 +509,23 @@ void CIPCServer::worker()
             if( data.responseSize > sizeof( client->resData ) || data.nCheckIPC == 1 )
             {
                 CIPCShm clientDataShm( getDataIPCName( data.sSenderIPCName ) );
-                CIPCSem clientDataSem( getDataIPCName( data.sSenderIPCName ) );
-
                 if( clientDataShm.Open() == -1 )
-                    continue;
+                	continue;
 
+                CIPCSem clientDataSem( getDataIPCName( data.sSenderIPCName ) );
                 if( clientDataSem.Open() == SEM_FAILED )
-                    continue;
+                	continue;
 
                 SemaphoreGuard clientDataGuard( clientDataSem.Get() );
-                CIPCMmap clientMmap( clientDataShm.Get() );
-                void* clientData = clientMmap.Open( sizeof( data.responseSize ) );
+                CIPCMmap clientDataMmap( clientDataShm.Get() );
+                void* clientData = clientDataMmap.Open( data.responseSize );
+                
+                if( clientData == nullptr )
+                	continue;
+                	
                 memcpy( clientData, resData, data.responseSize );
             }
-            else
+            else if ( data.responseSize > 0 )
             {
                 memcpy( client->resData, resData, data.responseSize );
             }
@@ -538,36 +549,33 @@ bool CreateIPC( const std::string& sIPCName, fnCallback fnCallback, void *pConte
     do
     {
         CIPCShm shmfd( sIPCName );
-        shmfd.Create();
-
-        if( shmfd.Get() == -1 )
+        if ( shmfd.Create() == -1 )
             break;
 
-        ipcData = (stIPCData*) openMmapIPC( shmfd.Get(), sizeof( stIPCData ), &isSuccess );
+        bool isMmapSuccess = false;
+        
+        ipcData = (stIPCData*) openMmapIPC( shmfd.Get(), sizeof( stIPCData ), &isMmapSuccess );
+        
+        if( isMmapSuccess == false || ipcData == nullptr )
+            break;
 
         shm.sDataIPCName = getDataIPCName( sIPCName );
-
         CIPCShm dataShmfd( shm.sDataIPCName );
-        dataShmfd.Create();
-
-        if( dataShmfd.Get() == -1 )
+        
+        if( dataShmfd.Create() == -1 )
             break;
 
         CIPCSem sem( sIPCName );
-
         if( sem.Create() == SEM_FAILED )
             break;
 
         CIPCSem semData( shm.sDataIPCName );
-
         if( semData.Create() == SEM_FAILED )
             break;
-
         semData.Close();
 
         {
             SemaphoreGuard guard( sem.Get() );
-
             ipcData->isInit = true;
 
             stIPCInfo info;
@@ -602,17 +610,15 @@ bool DestroyIPC( const std::string& sIPCName )
 
         stIPCShm shm = mapIPC[ sIPCName ];
 
+        mapIPC.remove( sIPCName );
+
         CIPCShm shmfd( sIPCName );
         CIPCSem sem( sIPCName );
-
-        cleanupIPC( sIPCName, nullptr, shmfd.Open(), sem.Open() );
+        cleanupIPC( sIPCName, shmfd.Open(), sem.Open() );
 
         CIPCShm dataShmfd( shm.sDataIPCName );
         CIPCSem dataSem( shm.sDataIPCName );
-
-        cleanupIPC( shm.sDataIPCName, nullptr, dataShmfd.Open(), dataSem.Open() );
-
-        mapIPC.remove( sIPCName );
+        cleanupIPC( shm.sDataIPCName, dataShmfd.Open(), dataSem.Open() );
 
         isSuccess = true;
 
@@ -665,19 +671,15 @@ bool SendIPC( const std::string& sIPCName, void *requestData, size_t requestSize
                     CIPCMmap serverMmap( serverShm.Get() );
                     stIPCData* server = (stIPCData*) serverMmap.Open( sizeof( stIPCData ) );
 
-                    if( server->isInit == false || server->hasRequest == true )
+                    if( server == nullptr || server->isInit == false || server->hasRequest == true )
                         break;
 
-                    bool isUsingMmap = false;
-
-                    if( requestSize > sizeof( server->reqData ) )
-                        isUsingMmap = true;
+                    bool isUsingMmap = ( requestSize > sizeof( server->reqData ) );
 
                     server->hasResponse     = false;
                     server->nSenderPID      = getpid();
                     server->requestSize     = requestSize;
                     server->sSenderIPCName  = getClientIPCName();
-                    server->hasRequest      = true;
                     server->needResponse    = true;
                     server->timeout         = std::time( nullptr ) + timeOutSec;
                     server->nCheckIPC       = nCheckIPC;
@@ -685,21 +687,17 @@ bool SendIPC( const std::string& sIPCName, void *requestData, size_t requestSize
                     if( isUsingMmap == true || nCheckIPC == 1 )
                     {
                         CIPCShm serverDataShm( getDataIPCName( sIPCName ) );
-
                         if( serverDataShm.Open() == -1 )
-                            break;
+                        	break;
 
                         CIPCSem serverDataSem( getDataIPCName( sIPCName ) );
-
                         if( serverDataSem.Open() == SEM_FAILED )
-                            break;
+                        	break;
 
                         SemaphoreGuard dataGuard( serverDataSem.Get() );
-
                         CIPCMmap serverDataMmap( serverDataShm.Get() );
-
                         if( serverDataMmap.Open( requestSize ) == nullptr )
-                            break;
+                        	break;
 
                         memcpy( serverDataMmap.Get(), requestData, requestSize );
                     }
@@ -707,7 +705,8 @@ bool SendIPC( const std::string& sIPCName, void *requestData, size_t requestSize
                     {
                         memcpy( server->reqData, requestData, requestSize );
                     }
-
+                    
+                    server->hasRequest      = true;
                     isSendSuccess = true;
 
                 } while( false );
@@ -724,6 +723,7 @@ bool SendIPC( const std::string& sIPCName, void *requestData, size_t requestSize
             break;
 
         bool isRecvSuccess = false;
+        nCheckMs = 0;
 
         while( nCheckMs < timeOutSec * 100 )
         {
@@ -733,27 +733,25 @@ bool SendIPC( const std::string& sIPCName, void *requestData, size_t requestSize
 
                 CIPCMmap clientMmap( clientShm.Get() );
                 stIPCData* client = (stIPCData*) clientMmap.Open( sizeof( stIPCData ) );
+				
+				if( client == nullptr )
+					break;
+				
                 if( client->hasRequest == false && client->hasResponse == true )
                 {
-                    bool isUsingMmap = false;
-
-                    if( client->responseSize > sizeof( client->resData ) )
-                        isUsingMmap = true;
-
+                    bool isUsingMmap = (client->responseSize > sizeof( client->resData ));
                     responseSize = client->responseSize;
 
                     if( isUsingMmap == true || nCheckIPC == 1 )
                     {
                         CIPCMmap clientDataMmap( clientDataShm.Get() );
-
-                        SemaphoreGuard guard( clientDataSem.Get() );
-
+                        SemaphoreGuard dataGuard( clientDataSem.Get() );
                         if( clientDataMmap.Open( client->responseSize ) == nullptr )
                             break;
 
                         memcpy( responseData, clientDataMmap.Get(), client->responseSize );
                     }
-                    else
+                    else if ( client->responseSize > 0 )
                     {
                         memcpy( responseData, client->resData, client->responseSize );
                     }
@@ -794,4 +792,3 @@ bool CheckIPC( const std::string& sIPCName, int nCheckIPC )
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
