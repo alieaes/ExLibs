@@ -2,22 +2,16 @@
 #include "EXString.hpp"
 
 #include <algorithm>
-#include <codecvt>
+#include <cwctype>
 #include <Windows.h>
 
 #ifdef USING_QTLIB
 #include <qdatetime.h>
 #endif
 
-#pragma warning(disable:4996)
-
 std::string XString::toString() const
 {
-    using convert_type = std::codecvt_utf8<wchar_t>;
-    std::wstring_convert<convert_type, wchar_t> cvt;
-
-    auto tmp = cvt.to_bytes( _str );
-    return tmp;
+    return Ext::Convert::ws2s( _str );
 }
 
 std::wstring XString::toWString() const
@@ -42,21 +36,26 @@ bool XString::toBool() const
 
 int XString::toInt() const
 {
-    int n = 0;
     try
     {
-        n= std::stoi( _str );
+        return std::stoi( _str );
     }
-    catch( [[maybe_unused]] const std::invalid_argument& ia )
+    catch( const std::exception& )
     {
+        return 0;
     }
-
-    return n;
 }
 
 long XString::toLong() const
 {
-    return std::stol( _str );
+    try
+    {
+        return std::stol( _str );
+    }
+    catch( const std::exception& )
+    {
+        return 0;
+    }
 }
 
 XString XString::toLower() const
@@ -77,13 +76,9 @@ XString XString::toUpper() const
 
 std::vector<char> XString::toCharByte() const
 {
-    std::wstring tmp = _str;
+    std::string tmp = Ext::Convert::ws2s( _str );
 
-    std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t> converter;
-    std::string string = converter.to_bytes( tmp );
-    std::vector< char > ret( string.begin(), string.end() );
-
-    return ret;
+    return std::vector<char>( tmp.begin(), tmp.end() );
 }
 
 bool XString::IsEmpty() const
@@ -93,34 +88,10 @@ bool XString::IsEmpty() const
 
 bool XString::IsDigit() const
 {
-    bool isDigit = false;
-    int n = toInt();
+    if( IsEmpty() == true )
+        return false;
 
-    do
-    {
-        if( n == 0 )
-        {
-            if( compare( "0" ) == 0 )
-            {
-                isDigit = true;
-                break;
-            }
-
-            isDigit = false;
-        }
-        else
-        {
-            isDigit = true;
-        }
-    }
-    while( false );
-
-    return isDigit;
-}
-
-bool XString::Endl() const
-{
-    return _nPos > size() ? true : false;
+    return std::ranges::all_of( _str, []( wchar_t c ) { return std::iswdigit( c ) != 0; } );
 }
 
 size_t XString::size() const
@@ -144,7 +115,7 @@ int XString::count( const XString& find ) const
         if( sizeFind != std::string::npos )
         {
             nCount++;
-            idx = sizeFind + 1;
+            idx = sizeFind + find.size();
         }
         else
         {
@@ -171,17 +142,17 @@ XString XString::substr( size_t nSrc, size_t nSize ) const
     return _str.substr( nSrc, nSize );
 }
 
-size_t XString::find_last_of( XString xs ) const
+size_t XString::find_last_of( const XString& xs ) const
 {
     return _str.find_last_of( xs.toWString() );
 }
 
-size_t XString::find( XString xs ) const
+size_t XString::find( const XString& xs ) const
 {
     return _str.find( xs.toWString() );
 }
 
-size_t XString::rfind( XString xs ) const
+size_t XString::rfind( const XString& xs ) const
 {
     return _str.rfind( xs.toWString() );
 }
@@ -215,13 +186,13 @@ std::vector<XString> XString::split( const XString& sSplit ) const
 
 XString XString::replaceAll( const XString& xa, const XString& xb ) const
 {
+    if( xa.IsEmpty() == true )
+        return _str;
+
     std::wstring tmp = _str;
 
-    for( size_t idx = tmp.find( xa.toWString() ); idx >= 0; idx = tmp.find( xa.toWString() ) )
+    for( size_t idx = tmp.find( xa.toWString() ); idx != std::wstring::npos; idx = tmp.find( xa.toWString(), idx + xb.size() ) )
     {
-        if( idx == std::string::npos )
-            break;
-
         tmp.replace( idx, xa.size(), xb.toWString() );
     }
 
@@ -259,9 +230,9 @@ bool XString::contains( const XString& xs, bool isCaseInsensitive /*= false*/ ) 
     if( isCaseInsensitive == true )
     {
         const std::wstring tmp{ toLower() };
-        return tmp.find( xs.toLower() ) != std::string::npos;
+        return tmp.find( xs.toLower().toWString() ) != std::string::npos;
     }
-    return _str.find( xs.toLower() ) != std::string::npos;
+    return _str.find( xs.toWString() ) != std::string::npos;
 }
 
 bool XString::startswith( const XString& xs, bool isCaseInsensitive /*= false*/ ) const
@@ -287,30 +258,11 @@ bool XString::endswith( const XString& xs, bool isCaseInsensitive /*= false*/ ) 
 void XString::clear()
 {
     _str.clear();
-    _nPos = 0;
 }
 
 std::wstring XString::s2ws( const std::string& s )
 {
-    if( s.empty() == true )
-        return L"";
-
-    std::setlocale( LC_ALL, "en_US.UTF-8" );
-
-    size_t len = s.length() + 1;
-    std::vector<wchar_t> buffer( len );
-
-    size_t convertedChars = 0;
-
-    if( mbstowcs_s( &convertedChars, buffer.data(), len, s.c_str(), len - 1 ) != 0 )
-    {
-        // nothing
-        return L"";
-    }
-    else
-    {
-        return std::wstring( buffer.data() );
-    }
+    return Ext::Convert::s2ws( s );
 }
 
 std::wstring XString::c2ws( const char* c )
@@ -318,20 +270,5 @@ std::wstring XString::c2ws( const char* c )
     if( c == NULL )
         return L"";
 
-    std::setlocale( LC_ALL, "en_US.UTF-8" );
-
-    size_t len = std::strlen( c ) + 1;
-    std::vector<wchar_t> buffer( len );
-
-    size_t convertedChars = 0;
-
-    if( mbstowcs_s( &convertedChars, buffer.data(), len, c, len - 1 ) != 0 )
-    {
-        // nothing
-        return L"";
-    }
-    else
-    {
-        return std::wstring( buffer.data() );
-    }
+    return Ext::Convert::s2ws( std::string( c ) );
 }

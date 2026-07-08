@@ -16,10 +16,10 @@ namespace Ext
             if( str.empty() == true )
                 return std::wstring();
 
-            int size_needed = MultiByteToWideChar( CP_ACP, 0, &str[ 0 ], ( int )str.size() + 1, NULL, 0 );
+            int size_needed = MultiByteToWideChar( CP_ACP, 0, str.data(), ( int )str.size(), NULL, 0 );
             std::wstring wstrTo( size_needed, 0 );
 
-            MultiByteToWideChar( CP_ACP, 0, &str[ 0 ], ( int )str.size(), &wstrTo[ 0 ], size_needed );
+            MultiByteToWideChar( CP_ACP, 0, str.data(), ( int )str.size(), &wstrTo[ 0 ], size_needed );
 
             return wstrTo;
         }
@@ -29,10 +29,10 @@ namespace Ext
             if( str.empty() == true )
                 return std::wstring();
 
-            int size_needed = MultiByteToWideChar( CP_UTF8, 0, &str[ 0 ], ( int )str.size() + 1, NULL, 0 );
+            int size_needed = MultiByteToWideChar( CP_UTF8, 0, str.data(), ( int )str.size(), NULL, 0 );
             std::wstring wstrTo( size_needed, 0 );
 
-            MultiByteToWideChar( CP_UTF8, 0, &str[ 0 ], ( int )str.size() + 1, &wstrTo[ 0 ], size_needed );
+            MultiByteToWideChar( CP_UTF8, 0, str.data(), ( int )str.size(), &wstrTo[ 0 ], size_needed );
 
             return wstrTo;
         }

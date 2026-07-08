@@ -83,7 +83,7 @@ public:
 
     XString( const std::string& s )
     {
-        s2ws( s );
+        _str = s2ws( s );
     }
 
     XString( const std::wstringstream& ws )
@@ -104,13 +104,13 @@ public:
     auto operator<=>( XString const& ) const = default;
 
     /////////////// XString <- X ///////////////
-    XString operator = ( std::wstring& ws )          // XString xs = std::wstring( L"TEST" );
+    XString operator = ( const std::wstring& ws )          // XString xs = std::wstring( L"TEST" );
     {
         _str = ws;
         return _str;
     }
 
-    XString operator = ( std::string& s )            // XString xs = std::string( "TEST" );
+    XString operator = ( const std::string& s )            // XString xs = std::string( "TEST" );
     {
         _str = s2ws( s );
         return _str;
@@ -148,7 +148,7 @@ public:
     }
 
 #ifdef QSTRING_H
-    XString operator = ( QString& qs )               // XString xs = QString( "TEST" );
+    XString operator = ( const QString& qs )         // XString xs = QString( "TEST" );
     {
         _str = qs.toStdWString();
         return _str;
@@ -195,7 +195,7 @@ public:
 
     XString operator +=( char c )
     {
-        _str += std::to_wstring( c );
+        _str += static_cast< wchar_t >( c );
         return _str;
     }
 
@@ -205,36 +205,31 @@ public:
         return _str;
     }
 
-    XString operator += ( std::string& s )
+    XString operator += ( const std::string& s )
     {
         _str += s2ws( s );
         return _str;
     }
 
-    XString operator +( XString& xs )
+    XString operator +( const XString& xs ) const
     {
         std::wstring tmp = _str + xs.toWString();
         return tmp;
     }
 
-    XString operator +( std::wstring& xs )
+    XString operator +( const std::wstring& xs ) const
     {
         std::wstring tmp = _str + xs;
         return tmp;
     }
 
-    XString operator +( const char* c )
+    XString operator +( const char* c ) const
     {
         std::wstring tmp = _str + c2ws( c );
         return tmp;
     }
 
-    XString operator +( const std::wstring& xs )
-    {
-        return _str + xs;
-    }
-
-    XString operator +( const std::string& xs )
+    XString operator +( const std::string& xs ) const
     {
         std::wstring tmp = _str + s2ws( xs );
         return tmp;
@@ -265,38 +260,6 @@ public:
         return _str.compare( wc ) == 0 ? true : false;
     }
 
-    XString operator *() const
-    {
-        if( _nPos > size() )
-            return NULL;
-        return _str[ _nPos ];
-    }
-
-    XString operator ++()
-    {
-        return _str[ _nPos++ ];
-    }
-
-    XString operator ++( int )
-    {
-        if( _nPos + 1 > size() )
-        {
-            ++_nPos;
-            return NULL;
-        }
-        return _str[ ++_nPos ];
-    }
-
-    XString operator --( int )
-    {
-        if( _nPos - 1 < size() )
-        {
-            --_nPos;
-            return NULL;
-        }
-        return _str[ --_nPos ];
-    }
-
     std::string                      toString() const;
     std::wstring                     toWString() const;
 #ifdef QSTRING_H
@@ -314,7 +277,6 @@ public:
 
     bool                             IsEmpty() const;
     bool                             IsDigit() const;
-    bool                             Endl() const;
 
     size_t                           size() const;
     int                              count( const XString& find ) const;
@@ -322,9 +284,9 @@ public:
     XString                          substr( size_t nDst ) const;
     XString                          substr( size_t nSrc, size_t nSize ) const;
 
-    size_t                           find_last_of( XString xs ) const;
-    size_t                           find( XString xs ) const;
-    size_t                           rfind( XString xs ) const;
+    size_t                           find_last_of( const XString& xs ) const;
+    size_t                           find( const XString& xs ) const;
+    size_t                           rfind( const XString& xs ) const;
 
     const wchar_t*                   c_str() const;
 
@@ -347,11 +309,10 @@ public:
 protected:
 
 private:
-    std::wstring                     s2ws( const std::string& s );
-    std::wstring                     c2ws( const char* c );
+    static std::wstring              s2ws( const std::string& s );
+    static std::wstring              c2ws( const char* c );
 
     std::wstring                     _str;
-    int                              _nPos = 0;
 };
 
 #endif
