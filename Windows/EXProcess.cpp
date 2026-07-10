@@ -23,3 +23,17 @@ bool Ext::Process::IsRunningProcess( unsigned uPID )
 
 	return isRunning;
 }
+
+bool Ext::Process::TerminateProcessById( unsigned int uPID )
+{
+	bool isSuccess = false;
+
+	HANDLE hProcess = OpenProcess( PROCESS_TERMINATE, FALSE, uPID );
+	if( hProcess != NULL )
+	{
+		isSuccess = ( TerminateProcess( hProcess, 0 ) == TRUE );
+		CloseHandle( hProcess );
+	}
+
+	return isSuccess;
+}

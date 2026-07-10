@@ -10,6 +10,7 @@ namespace Ext
     namespace Process
     {
         bool                                     IsRunningProcess( unsigned int uPID );
+        bool                                     TerminateProcessById( unsigned int uPID );
     }
 }
 #endif
