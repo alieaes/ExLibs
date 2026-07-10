@@ -26,7 +26,7 @@ namespace Ext
             {
                 std::unique_lock< std::mutex > lck( _lck );
 
-                while( _queue.empty() == true )
+                while( _queue.empty() == true && _isStop == false )
                     _cvQueue.wait( lck );
 
                 if( _isStop == true )
