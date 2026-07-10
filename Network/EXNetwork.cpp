@@ -144,12 +144,20 @@ bool Ext::Network::cNetwork::Connect()
                 break;
             }
 
+            // 재연결 시 이전 수신 스레드가 이미 끝났더라도 std::thread 객체 자체는 여전히 joinable
+            // 상태다. join하지 않고 덮어쓰면 std::terminate()가 호출되므로 반드시 정리하고 재생성한다.
+            if( _thClientReceive.joinable() == true )
+                _thClientReceive.join();
+
             _thClientReceive = std::thread( [this] { clientReceiveThread(); } );
         }
         else if( _info.eType == NETWORK_SERVER )
         {
             if( _spTCPServer == NULLPTR )
                 _spTCPServer = std::make_shared<CTCPServer>( std::bind( &cNetwork::networkLogging, this, std::placeholders::_1 ), std::to_string( _info.dwPort ) );
+
+            if( _thServerListen.joinable() == true )
+                _thServerListen.join();
 
             _thServerListen = std::thread( [this] { serverListenThread(); } );
         }
@@ -217,6 +225,22 @@ bool Ext::Network::cNetwork::DisConnectAll()
     _mapUUIDToClientInfo.clear();
 
     return isSuccess;
+}
+
+bool Ext::Network::cNetwork::SendToClientSocket( ASocket::Socket socket, MSGID msgId, const PacketData& vecData )
+{
+    if( _info.eType != NETWORK_SERVER )
+    {
+        assert( false );
+        return false;
+    }
+
+    if( _spTCPServer == NULLPTR )
+        return false;
+
+    std::vector<char> vecPacket = convertSendMsg( msgId, vecData );
+
+    return _spTCPServer->Send( socket, vecPacket );
 }
 
 bool Ext::Network::cNetwork::SendToClient( const XString& sUUID, const PacketData& vecData )

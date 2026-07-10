@@ -128,6 +128,10 @@ namespace Ext
             bool                                     SendToClient( const XString& sUUID, const PacketData& vecData );
             bool                                     SendToAll( const PacketData& vecData );
 
+            // 서버 핸들러 콜백은 ASocket::Socket만 들고 있으므로(UUID 조회 없이) 그 소켓에 바로 응답할 때 사용.
+            // msgId를 요청 패킷과 동일하게 지정하면 클라이언트의 SendAndWait가 그 응답으로 매칭한다.
+            bool                                     SendToClientSocket( ASocket::Socket socket, MSGID msgId, const PacketData& vecData );
+
 			// 클라이언트 -> 서버. 응답 수신하지 않음. 패킷에 사용된 MSGID 반환 (실패 시 0)
             MSGID                                    Send( const PacketData& vecData );
 			// 클라이언트 -> 서버, 동일한 MSGID를 가진 응답 패킷이 도착하거나 타임아웃이 경과할 때까지 블록
@@ -142,6 +146,15 @@ namespace Ext
 
                 const char* p = reinterpret_cast<const char*>( &data );
                 return SendToClient( sUUID, PacketData( p, p + sizeof( T ) ) );
+            }
+
+            template< typename T >
+            bool SendToClientSocket( ASocket::Socket socket, MSGID msgId, const T& data )
+            {
+                static_assert( std::is_trivially_copyable<T>::value, "SendToClientSocket<T> requires a trivially copyable type" );
+
+                const char* p = reinterpret_cast<const char*>( &data );
+                return SendToClientSocket( socket, msgId, PacketData( p, p + sizeof( T ) ) );
             }
 
             template< typename T >
