@@ -9,7 +9,7 @@ Ext::Network::cModuleNetwork::~cModuleNetwork()
 {
 }
 
-bool Ext::Network::cModuleNetwork::NotifyModule( const std::wstring& sNotifyJobs )
+bool Ext::Network::cModuleNetwork::NotifyModule( const XString& sNotifyJobs )
 {
     return true;
 }
@@ -32,14 +32,4 @@ bool Ext::Network::cModuleNetwork::moduleStop()
 bool Ext::Network::cModuleNetwork::moduleFinal()
 {
     return true;
-}
-
-void Ext::Network::cModuleNetwork::setModuleName()
-{
-    _sModuleName = L"";
-}
-
-void Ext::Network::cModuleNetwork::setModuleGroup()
-{
-    _sModuleGroup = L"";
 }

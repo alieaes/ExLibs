@@ -3,6 +3,8 @@
 #ifndef __HDR_EXT_MODULE_BASE__
 #define __HDR_EXT_MODULE_BASE__
 
+#include <mutex>
+
 #include "Module/ExModuleDefines.hpp"
 #include "String/EXString.hpp"
 

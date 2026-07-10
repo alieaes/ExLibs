@@ -9,6 +9,7 @@
 #include "EXModuleBase.hpp"
 
 #include <shared_mutex>
+#include <map>
 
 #include "Util/ExDataStruct.hpp"
 

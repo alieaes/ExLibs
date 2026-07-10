@@ -1,5 +1,8 @@
 ﻿#include "stdafx.h"
 #include "EXNetwork.hpp"
+
+#include <cassert>
+
 #include "EXConverter.hpp"
 
 #include "Base/ExtConfig.hpp"
@@ -142,6 +145,23 @@ bool Ext::Network::cNetwork::DisConnect( const XString& sUUID )
 
 bool Ext::Network::cNetwork::DisConnectAll()
 {
+    if( _info.eType != NETWORK_SERVER )
+    {
+        assert( false );
+        return false;
+    }
+
+    bool isSuccess = true;
+
+    for( auto& pair : _mapUUIDToClientInfo )
+    {
+        pair.second.spServerReceive.get()->Stop();
+        isSuccess &= _spTCPServer->Disconnect( pair.second.connectionClient );
+    }
+
+    _mapUUIDToClientInfo.clear();
+
+    return isSuccess;
 }
 
 void Ext::Network::cNetwork::networkLogging( const std::string& sLog )

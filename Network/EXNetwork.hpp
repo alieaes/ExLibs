@@ -3,6 +3,8 @@
 #ifndef __HDR_EXT_NETWORK__
 #define __HDR_EXT_NETWORK__
 
+#include <map>
+
 #include "Network/include/Socket/Socket.h"
 #include "Network/include/Socket/TCPClient.h"
 #include "Network/include/Socket/TCPServer.h"

@@ -20,7 +20,7 @@ namespace Ext
         public:
             cModuleNetwork();
             ~cModuleNetwork() override;
-            bool NotifyModule( const std::wstring& sNotifyJobs ) override;
+            bool NotifyModule( const XString& sNotifyJobs ) override;
 
             bool                                     NewConnection();
             bool                                     GetConnection();
@@ -31,8 +31,6 @@ namespace Ext
             bool                                     moduleStart() override;
             bool                                     moduleStop() override;
             bool                                     moduleFinal() override;
-            void                                     setModuleName() override;
-            void                                     setModuleGroup() override;
 
         public:
         };
